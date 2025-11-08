@@ -1,0 +1,1 @@
+Librairie utilisée pour la led: [wiringPi](https://github.com/WiringPi/WiringPi/tree/master)
