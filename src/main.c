@@ -25,44 +25,41 @@ int main(int argc, char *argv[]) {
 
     /* DÃtecter les paramÃ¨trespassÃs en argument du programme */
     for (i = 0; i < argc; i++) {
-	if (strcmp(argv[i], "--input") == 0) {
-	    if (i+1 >= argc) {
-	        printf("Mauvais usage: --input attend un argument\n");
+        if (strcmp(argv[i], "--input") == 0) {
+	        if (i+1 >= argc) {
+	            printf("Mauvais usage: --input attend un argument\n");
                 exit(1);
-	    }
-	    
-	    strncpy(input, argv[i+1], 255);
-	    i++;
-	}
-
-	if(strcmp(argv[i], "--output") == 0) {
-	    if(i+1 >= argc) {
-	        printf("Mauvais usage: --output attend un argument\n");
-	        exit(1);
-	    }
-	    
-	    strncpy(output, argv[i+1], 255);
-	    i++;
-	}
-
-	if (strcmp(argv[i], "--only-longest") == 0) {
-	    only_longest = 1;
+	        }
+	        
+			strncpy(input, argv[++i], 255);
         }
 
-	if (strcmp(argv[i], "--debug") == 0) {
-            if(i+1 >= argc) {
-	        printf("Mauvais usage: --debug attend un argument\n");
-		exit(1);
-	    }
+        if(strcmp(argv[i], "--output") == 0) {
+           if(i+1 >= argc) {
+               printf("Mauvais usage: --output attend un argument\n");
+               exit(1);
+           }
 
-	    // atoi, strtol ne retourne pas si il y a eu une erreur (juste 0)
+            strncpy(output, argv[++i], 255);
+        }
+
+        if (strcmp(argv[i], "--only-longest") == 0) {
+            only_longest = 1;
+        }
+
+        if (strcmp(argv[i], "--debug") == 0) {
+            if(i+1 >= argc) {
+                printf("Mauvais usage: --debug attend un argument\n");
+                exit(1);
+            }
+
+            // atoi, strtol ne retourne pas si il y a eu une erreur (juste 0)
             // debug = strtol(argv[i+1], NULL, 10);
 
-	    if (sscanf(argv[i+1], "%d", &debug) == 0) {
-	    	printf("Mauvais usage: --debug attend un argument entier\n");
-		exit(1);
-	    }
-            i++;
+            if (sscanf(argv[++i], "%d", &debug) == 0) {
+               printf("Mauvais usage: --debug attend un argument entier\n");
+               exit(1);
+            }
         }
     }
 
