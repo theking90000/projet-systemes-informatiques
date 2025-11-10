@@ -11,7 +11,8 @@
 #define POWER_PIN 26
 
 int main(int argc, char *argv[]) {
-    /* Paramètres du programme */
+    /* Paramètres du programm: pourra �ventuellement faire l'objet du structure d�diéavec une fonction
+     * int parse_args(args*) */
     char     input[255] = {0}; /* --input <path> (optionel)  */
     char     output[255] = {0}; /* --output <path> (optionel) */
     int      only_longest = 0; /* --only-longest (optionnel) */
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--input") == 0) {
             if (i+1 >= argc) {
-                printf("Mauvais usage: --input attend un argument\n");
+                fprintf(stderr, "Mauvais usage: --input attend un argument\n");
                 exit(1);
             }
 
@@ -36,7 +37,7 @@ int main(int argc, char *argv[]) {
 
         if(strcmp(argv[i], "--output") == 0) {
            if(i+1 >= argc) {
-               printf("Mauvais usage: --output attend un argument\n");
+               fprintf(stderr, "Mauvais usage: --output attend un argument\n");
                exit(1);
            }
 
@@ -49,7 +50,7 @@ int main(int argc, char *argv[]) {
 
         if (strcmp(argv[i], "--debug") == 0) {
             if(i+1 >= argc) {
-                printf("Mauvais usage: --debug attend un argument\n");
+                fprintf(stderr, "Mauvais usage: --debug attend un argument\n");
                 exit(1);
             }
 
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
             // debug = strtol(argv[i+1], NULL, 10);
 
             if (sscanf(argv[++i], "%d", &debug) == 0) {
-               printf("Mauvais usage: --debug attend un argument entier\n");
+               fprintf(stderr, "Mauvais usage: --debug attend un argument entier\n");
                exit(1);
             }
         }
@@ -94,8 +95,8 @@ int main(int argc, char *argv[]) {
         if(debug >= 3) printf("Debug: ouverture de %s en écriture\n", output);
 
         if ((out=fopen(output, "w")) == NULL) {
-            printf("Erreur: impossible d'écrire le fichier %s\n", output);
-            printf("(%s)\n", strerror(errno));
+            fprintf(stderr, "Erreur: impossible d'écrire le fichier %s\n", output);
+            fprintf(stderr, "(%s)\n", strerror(errno));
             exit(1);
         }
     }
@@ -103,13 +104,18 @@ int main(int argc, char *argv[]) {
     if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
     /* Initialiser la LED => peut-être g�rer les erreur? */
-    init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN);
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN) != 0) {
+        fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
+        exit(1);
+    }
 
     /* Executer la fonction solve() ?*/
 
     // %============================================%
     // | Fin du programme - Fermeture des resources |
     // %============================================%
+    
+    turn_off(&led);
 
     if (strlen(input) != 0) {
         if(debug >= 3) printf("Debug: fermeture du fichier %s\n", input);

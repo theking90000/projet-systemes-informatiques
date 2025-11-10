@@ -4,7 +4,9 @@
 #include <stdio.h>
 
 int init_led(Led *led, uint8_t red_pin, uint8_t green_pin, uint8_t blue_pin, uint8_t power_pin) {
-    wiringPiSetupGpioDevice(WPI_PIN_BCM);
+    if(wiringPiSetupGpioDevice(WPI_PIN_BCM) != 0) {
+        return 1;
+    }
 
     pinMode(red_pin, OUTPUT);
     pinMode(green_pin, OUTPUT);
@@ -41,4 +43,9 @@ void turn_off(Led *led) {
     softPwmStop(led->green_pin);
     softPwmStop(led->blue_pin);
     softPwmStop(led->power_pin);
+
+    pinMode(led->red_pin, PM_OFF);
+    pinMode(led->green_pin, PM_OFF);
+    pinMode(led->blue_pin, PM_OFF);
+    pinMode(led->power_pin, PM_OFF);
 }
