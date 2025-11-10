@@ -9,6 +9,7 @@
 #define GREEN_PIN 27
 #define BLUE_PIN 17
 #define POWER_PIN 26
+#define SUPPORTS_HARDWARE_PWM 0
 
 int main(int argc, char *argv[]) {
     /* ParamÃ¨tres du programm: pourra Ãventuellement faire l'objet du structure dÃdiÃ©avec une fonction
@@ -104,7 +105,8 @@ int main(int argc, char *argv[]) {
     if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
     /* Initialiser la LED => peut-Ãªtre gÃrer les erreur? */
-    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN) != 0) {
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN,
+                !SUPPORTS_HARDWARE_PWM) != 0) {
         fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
         exit(1);
     }
