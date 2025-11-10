@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <wiringPi.h>
 #include <string.h>
+#include <errno.h>
 
 #define RED_PIN 22
 #define GREEN_PIN 27
@@ -11,19 +11,19 @@
 #define POWER_PIN 26
 
 int main(int argc, char *argv[]) {
-    /* Param√tres du programme */
+    /* Param√®tres du programme */
     char     input[255] = {0}; /* --input <path> (optionel)  */
     char     output[255] = {0}; /* --output <path> (optionel) */
     int      only_longest = 0; /* --only-longest (optionnel) */
     int      debug = 0; /* --debug <level> (optionnel) */
 
-    /* Variables utilis√es par le programme */
+    /* Variables utilis√©es par le programme */
     Led      led;
     int      i;
     FILE*    in;
     FILE*    out;
 
-    /* D√tecter les param√®trespass√s en argument du programme */
+    /* D√©tecter les param√®tres pass√©s en argument du programme */
     for (i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--input") == 0) {
             if (i+1 >= argc) {
@@ -63,37 +63,55 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("Debug Params\n");
-    printf(" - input='%s'\n", input);
-    printf(" - output='%s'\n", output);
-    printf(" - only_longest=%b\n", only_longest);
-    printf(" - debug=%d\n", debug);
+    if (debug >= 3) {
+        printf("Debug Params\n");
+        printf(" - input='%s'\n", input);
+        printf(" - output='%s'\n", output);
+        printf(" - only_longest=%b\n", only_longest);
+        printf(" - debug=%d\n", debug);
+    }
+
+    // %--------------------%
+    // | D√©but du programme |
+    // %--------------------%
 
     if (strlen(input) == 0) {
-        //fdi = stdin;
+        in = stdin;
     } else {
-    	/*fdi = fopen(input, "r");
-	if (fdi == NULL) {
-	    printf("Erreur\n");
-	    exit(1);
-	}*/
+        if(fopen(input, "r") == NULL) {
+            printf("Erreur: impossible de lire le fichier %s\n", input);
+            /* Affichage de l'erreur en utilisant errno */
+            printf("(%s)\n", strerror(errno));
+            exit(1);
+        }
     }
 
+    if (strlen(output) == 0) {
+        out = stdout;
+    } else {
+        if (fopen(input, "w") == NULL) {
+            printf("Erreur: impossible d'√crire le fichier %s\n", output);
+            printf("(%s)\n", strerror(errno));
+            exit(1);
+        }
+    }
+
+    /* Initialiser la LED => peut-√™tre g√rer les erreur? */
     init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN);
 
-    set_color(&led, RED);
-    delay(1000);
+    /* Executer la fonction solve() ?*/
 
-    set_color(&led, GREEN);
-    delay(1000);
+    // %============================================%
+    // | Fin du programme - Fermeture des resources |
+    // %============================================%
 
-    for (uint8_t i = 255; i > 0; i -=5) {
-	//c.alpha = i;
-        //set_color(&led, c);
-        delay(50);
+    if (strlen(input) != 0) {
+        fclose(in);
+    } 
+
+    if (strlen(output) != 0) {
+        fclose(out);
     }
-
-    turn_off(&led);
 
     return 0;
 }
