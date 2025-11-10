@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (debug >= 3) {
-        printf("Debug Params\n");
+        printf("Debug: parametres du programme\n");
         printf(" - input='%s'\n", input);
         printf(" - output='%s'\n", output);
         printf(" - only_longest=%b\n", only_longest);
@@ -78,7 +78,9 @@ int main(int argc, char *argv[]) {
     if (strlen(input) == 0) {
         in = stdin;
     } else {
-        if(fopen(input, "r") == NULL) {
+        if (debug >= 3) printf("Debug: ouverture de %s\n", input);
+
+        if((in = fopen(input, "r")) == NULL) {
             printf("Erreur: impossible de lire le fichier %s\n", input);
             /* Affichage de l'erreur en utilisant errno */
             printf("(%s)\n", strerror(errno));
@@ -89,12 +91,16 @@ int main(int argc, char *argv[]) {
     if (strlen(output) == 0) {
         out = stdout;
     } else {
-        if (fopen(input, "w") == NULL) {
-            printf("Erreur: impossible d'Ãcrire le fichier %s\n", output);
+        if(debug >= 3) printf("Debug: ouverture de %s en Ã©criture\n", output);
+
+        if ((out=fopen(output, "w")) == NULL) {
+            printf("Erreur: impossible d'Ã©crire le fichier %s\n", output);
             printf("(%s)\n", strerror(errno));
             exit(1);
         }
     }
+
+    if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
     /* Initialiser la LED => peut-Ãªtre gÃrer les erreur? */
     init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN);
@@ -106,10 +112,12 @@ int main(int argc, char *argv[]) {
     // %============================================%
 
     if (strlen(input) != 0) {
+        if(debug >= 3) printf("Debug: fermeture du fichier %s\n", input);
         fclose(in);
     } 
 
     if (strlen(output) != 0) {
+        if(debug >= 3) printf("Debug: fermeture du fichier %s\n", output);
         fclose(out);
     }
 
