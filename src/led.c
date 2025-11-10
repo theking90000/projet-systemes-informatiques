@@ -2,49 +2,43 @@
 #include <wiringPi.h>
 #include <softPwm.h>
 #include <stdio.h>
-#include <stdbool.h>
 
-static int led_initialized = false;
-
-int initialise() {
-    if (led_initialized) {
-        printf("Warn: LED already initialized.\n");
-        return 0;
-    }
+int init_led(Led *led, uint8_t red_pin, uint8_t green_pin, uint8_t blue_pin, uint8_t power_pin) {
     wiringPiSetupGpioDevice(WPI_PIN_BCM);
-    pinMode(RED_PIN, OUTPUT);
-    pinMode(GREEN_PIN, OUTPUT);
-    pinMode(BLUE_PIN, OUTPUT);
-    pinMode(POWER_PIN, OUTPUT);
 
-    softPwmCreate(RED_PIN, 0, 255);
-    softPwmCreate(GREEN_PIN, 0, 255);
-    softPwmCreate(BLUE_PIN, 0, 255);
-    softPwmCreate(POWER_PIN, 0, 255);
+    pinMode(red_pin, OUTPUT);
+    pinMode(green_pin, OUTPUT);
+    pinMode(blue_pin, OUTPUT);
+    pinMode(power_pin, OUTPUT);
 
-    led_initialized = true;
+    softPwmCreate(red_pin, 0, 255);
+    softPwmCreate(green_pin, 0, 255);
+    softPwmCreate(blue_pin, 0, 255);
+    softPwmCreate(power_pin, 0, 255);
+
+    led->red_pin = red_pin;
+    led->green_pin = green_pin;
+    led->blue_pin = blue_pin;
+    led->power_pin = power_pin;
+
     return 0;
 }
 
-void set_color(Color color) {
-    softPwmWrite(RED_PIN, 255 - color.red);
-    softPwmWrite(GREEN_PIN, 255 - color.green);
-    softPwmWrite(BLUE_PIN, 255 - color.blue);
-    softPwmWrite(POWER_PIN, color.alpha);
+void set_color(Led *led, Color color) {
+    softPwmWrite(led->red_pin, 255 - color.red);
+    softPwmWrite(led->green_pin, 255 - color.green);
+    softPwmWrite(led->blue_pin, 255 - color.blue);
+    softPwmWrite(led->power_pin, color.alpha);
 }
 
-void turn_off() {
-    if (!led_initialized) {
-        printf("Warn: LED not initialized.\n");
-        return;
-    }
-    softPwmWrite(RED_PIN, 255);
-    softPwmWrite(GREEN_PIN, 255);
-    softPwmWrite(BLUE_PIN, 255);
-    softPwmWrite(POWER_PIN, 0);
-    softPwmStop(RED_PIN);
-    softPwmStop(GREEN_PIN);
-    softPwmStop(BLUE_PIN);
-    softPwmStop(POWER_PIN);
-    led_initialized = false;
+void turn_off(Led *led) {
+    softPwmWrite(led->red_pin, 255);
+    softPwmWrite(led->green_pin, 255);
+    softPwmWrite(led->blue_pin, 255);
+    softPwmWrite(led->power_pin, 0);
+
+    softPwmStop(led->red_pin);
+    softPwmStop(led->green_pin);
+    softPwmStop(led->blue_pin);
+    softPwmStop(led->power_pin);
 }
