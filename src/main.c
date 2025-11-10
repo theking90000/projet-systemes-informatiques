@@ -11,6 +11,18 @@
 #define POWER_PIN 26
 #define SUPPORTS_HARDWARE_PWM 0
 
+/*
+ * TODO: penser a reorganiser comme suit:
+ * Puisque qu il faut allumer la LED en rouge en cas d erreur,
+ * je propose de creer une fonction void exit_err(Led*);
+ * Cependant c est compliqu√ car il faut idealement fermer toutes les 
+ * resources (in, out, led) avant de quitter.
+ *
+ * Il me semble que les programmes utilisent un "goto" cleanup qui s'occupe de tout fermer
+ * mais a voir comment on fait. Car un exit(1) trop brutal ne laisse pas fermer les resources
+ * ouvertes. (donc soit exit_err(Led*, FILE*, FILE*) qui ferme tout) soit un "goto" cleanup.
+ * */
+
 int main(int argc, char *argv[]) {
     /* Param√®tres du programm: pourra √ventuellement faire l'objet du structure d√di√©avec une fonction
      * int parse_args(args*) */
