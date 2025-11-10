@@ -26,12 +26,12 @@ int main(int argc, char *argv[]) {
     /* D√tecter les param√®trespass√s en argument du programme */
     for (i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--input") == 0) {
-	        if (i+1 >= argc) {
-	            printf("Mauvais usage: --input attend un argument\n");
+            if (i+1 >= argc) {
+                printf("Mauvais usage: --input attend un argument\n");
                 exit(1);
-	        }
-	        
-			strncpy(input, argv[++i], 255);
+            }
+
+            strncpy(input, argv[++i], 255);
         }
 
         if(strcmp(argv[i], "--output") == 0) {
