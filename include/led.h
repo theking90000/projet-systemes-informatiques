@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LED_GUARD
+#define LED_GUARD
 
 #include <stdint.h>
 
@@ -14,7 +15,7 @@
 
 typedef struct   Color {
         
-	uint8_t  red;
+        uint8_t  red;
         uint8_t  green;
         uint8_t  blue;
         uint8_t  alpha;
@@ -23,7 +24,7 @@ typedef struct   Color {
 
 typedef struct   Led {
         
-	uint8_t  red_pin;
+        uint8_t  red_pin;
         uint8_t  blue_pin;
         uint8_t  green_pin;
         uint8_t  power_pin;
@@ -32,12 +33,14 @@ typedef struct   Led {
 
 
 int     init_led(Led     *led, 
-		 uint8_t red_pin, 
-		 uint8_t green_pin, 
-		 uint8_t blue_pin, 
-		 uint8_t power_pin);
+                 uint8_t red_pin, 
+                 uint8_t green_pin, 
+                 uint8_t blue_pin, 
+                 uint8_t power_pin);
 
 void 	set_color(Led   *led, 
-		  Color  color);
+                  Color  color);
 
 void    turn_off(Led *led);
+
+#endif
