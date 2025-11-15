@@ -34,8 +34,11 @@ int main(int argc, char *argv[]) {
     /* Variables utilisées par le programme */
     Led      led;
     int      i;
-    FILE*    in;
-    FILE*    out;
+    FILE*    in  = 0;
+    FILE*    out = 0;
+
+    /* Code de retour */
+    int      ret = 0;
 
     /* Détecter les paramètres passés en argument du programme */
     for (i = 0; i < argc; i++) {
@@ -89,6 +92,16 @@ int main(int argc, char *argv[]) {
     // | Début du programme |
     // %--------------------%
 
+
+    if (debug >= 3) printf("Debug: initialisation de la LED\n");
+
+    /* Initialiser la LED => peut-être g�rer les erreur? */
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN,
+                !SUPPORTS_HARDWARE_PWM) != 0) {
+        fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
+        exit(1);
+    }
+
     if (strlen(input) == 0) {
         in = stdin;
     } else {
@@ -98,7 +111,7 @@ int main(int argc, char *argv[]) {
             printf("Erreur: impossible de lire le fichier %s\n", input);
             /* Affichage de l'erreur en utilisant errno */
             printf("(%s)\n", strerror(errno));
-            exit(1);
+            goto fail;
         }
     }
 
@@ -110,17 +123,8 @@ int main(int argc, char *argv[]) {
         if ((out=fopen(output, "w")) == NULL) {
             fprintf(stderr, "Erreur: impossible d'écrire le fichier %s\n", output);
             fprintf(stderr, "(%s)\n", strerror(errno));
-            exit(1);
+            goto fail;
         }
-    }
-
-    if (debug >= 3) printf("Debug: initialisation de la LED\n");
-
-    /* Initialiser la LED => peut-être g�rer les erreur? */
-    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN,
-                !SUPPORTS_HARDWARE_PWM) != 0) {
-        fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
-        exit(1);
     }
 
     /* Executer la fonction solve() ?*/
@@ -129,17 +133,52 @@ int main(int argc, char *argv[]) {
     // | Fin du programme - Fermeture des resources |
     // %============================================%
     
-    turn_off(&led);
+    // Execution OK => Mettre la LED en vert
+    set_color(&led, GREEN);
 
-    if (strlen(input) != 0) {
+    // %%%% Label Cleanup pour permettre de goto (jump) directement si necessaire %%%%
+    cleanup:
+    // turn_off(&led) : ne pas faire ca si on veut laisser la LED allumé
+    // Risque de memory LEAK donc a voir si on laisse juste un getchar() dans le vide
+    // Ou on coupe le programme => poser la question au prof.
+    
+    if(in && in != stdin) {
         if(debug >= 3) printf("Debug: fermeture du fichier %s\n", input);
-        fclose(in);
-    } 
 
-    if (strlen(output) != 0) {
-        if(debug >= 3) printf("Debug: fermeture du fichier %s\n", output);
-        fclose(out);
+        if(fclose(in) != 0) {
+            fprintf(stderr, "Erreur: impossible de fermer le fichier %s\n", input);
+            /* Affichage de l'erreur en utilisant errno */
+            fprintf(stderr, "(%s)\n", strerror(errno));
+        }
     }
 
-    return 0;
+
+    if(out && out != stdout) {
+        if(debug >= 3) printf("Debug: fermeture du fichier %s\n", output);
+
+        if(fclose(in) != 0) {
+            fprintf(stderr, "Erreur: impossible de fermer le fichier %s\n", output);
+            /* Affichage de l'erreur en utilisant errno */
+            fprintf(stderr, "(%s)\n", strerror(errno));
+        }
+    }
+
+    // getchar() ou timeout puis?
+    // turn_off(&led) ? 
+    
+    return ret;
+
+    // Point pour indiquer une erreur
+    fail:
+        // Mettre la LED en rouge
+        // TODO: gerer le cas ou l'erreur est generee par l'initalisation
+        // de la LED, dans ce cas on peut pas mettre la led en rouge car 
+        // la led n'est pas initialisee justement
+        // Rm: normalement avec un early exit apres init_led c'est bon
+        set_color(&led, RED);
+
+        // Aller a la sortie: cleanup
+        ret = 1;
+        goto cleanup;
+
 }
