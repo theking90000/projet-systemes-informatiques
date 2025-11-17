@@ -15,7 +15,7 @@
 #define GREEN_PIN 27
 #define BLUE_PIN 17
 #define POWER_PIN 26
-#define SUPPORTS_HARDWARE_PWM 0
+#define PWM_TYPE NO_PWM
 
 #if USE_FORK
 
@@ -111,8 +111,7 @@ int main(int argc, char *argv[]) {
     if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
     /* Initialiser la LED => peut-être g�rer les erreur? */
-    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN,
-                !SUPPORTS_HARDWARE_PWM) != 0) {
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN, PWM_TYPE) != 0) {
         fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
         exit(1);
     }
@@ -148,10 +147,7 @@ int main(int argc, char *argv[]) {
         if(debug >= 3) printf("Execution du fork\n");
 
         running = 1;
-        //sa.sa_handler = sig_handler;
-        //sa.sa_flags = 0; 
         signal(SIGCHLD, sig_handler);
-        //sigaction(SIGCHLD, &sa, NULL);
 
         pid = fork();
 
@@ -185,7 +181,7 @@ int main(int argc, char *argv[]) {
             break;
         };
 
-        set_color(&led, BLUE);
+        set_color(&led, WHITE);
 
         // Sleep pendant 500ms
         if(!running || (usleep(500 * 1000) == -1 && errno == EINTR)) {
@@ -194,6 +190,7 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    #if USE_FORK
     if((pid = waitpid(pid, &status, 0)) == -1) {
         perror("wait(): erreur\n");
         goto fail;
@@ -204,6 +201,7 @@ int main(int argc, char *argv[]) {
             goto fail;
         }
     }
+    #endif
 
     // %============================================%
     // | Fin du programme - Fermeture des resources |
