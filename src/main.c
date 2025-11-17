@@ -17,17 +17,21 @@
 #define POWER_PIN 26
 #define SUPPORTS_HARDWARE_PWM 0
 
-/*
- * TODO: penser a reorganiser comme suit:
- * Puisque qu il faut allumer la LED en rouge en cas d erreur,
- * je propose de creer une fonction void exit_err(Led*);
- * Cependant c est compliqu� car il faut idealement fermer toutes les 
- * resources (in, out, led) avant de quitter.
- *
- * Il me semble que les programmes utilisent un "goto" cleanup qui s'occupe de tout fermer
- * mais a voir comment on fait. Car un exit(1) trop brutal ne laisse pas fermer les resources
- * ouvertes. (donc soit exit_err(Led*, FILE*, FILE*) qui ferme tout) soit un "goto" cleanup.
- * */
+#if USE_FORK
+
+/* Variable indiquant si le child tourne ou pas 
+ * volatile : force le compilateur a reverifier la valeur en memoire a chaque fois
+ *            et evite les optimisations du style cette valeur ne change jamais
+ * sig_atomic_t : type de donnees qui peut etre modifier dans un signal handler */
+volatile sig_atomic_t    running;
+
+void sig_handler(int signum) {
+    // Informer que le SIGCHILD recu => le child ne tourne plus.
+    printf("Signal recu!!\n");
+    running = 0;
+}
+
+#endif
 
 int main(int argc, char *argv[]) {
     /* Paramètres du programm: pourra �ventuellement faire l'objet du structure d�diéavec une fonction
@@ -42,6 +46,7 @@ int main(int argc, char *argv[]) {
     int      i;
     FILE*    in  = 0;
     FILE*    out = 0;
+
     #if USE_FORK
     pid_t    pid;
     int      status;
@@ -142,6 +147,12 @@ int main(int argc, char *argv[]) {
     #if USE_FORK
         if(debug >= 3) printf("Execution du fork\n");
 
+        running = 1;
+        //sa.sa_handler = sig_handler;
+        //sa.sa_flags = 0; 
+        signal(SIGCHLD, sig_handler);
+        //sigaction(SIGCHLD, &sa, NULL);
+
         pid = fork();
 
         if (pid == -1) {
@@ -161,28 +172,37 @@ int main(int argc, char *argv[]) {
     // Ici on est d'office dans le parent
     // -> Faire clignoter la LED.
     
-    while(1) {
-        #if USE_FORK
-        
-        // Ou bien (peut etre plus efficace, gerer un SIGHANDLER pour SIGCHILD)
-        if((pid = waitpid(pid, &status, WNOHANG)) == -1) {
-            perror("wait(): erreur\n");
-            goto fail;
-        } else if (pid == 0) {
-            if (debug>=3) printf("child tourne encore\n");
-        } else {
-            if (debug >= 3) printf("child a quitte avec %d\n", status);
+    #if USE_FORK
+    while(running) {
+    #endif
+        if(debug>=3) printf("child tourne encore\n");
 
-            if (status == 0) {
-                break;
-            } else {
-                goto fail;
-            }
+        set_color(&led, BLUE);
+
+        // Sleep pendant 500ms
+        if(!running || (usleep(500 * 1000) == -1 && errno == EINTR)) {
+            if(debug>=3) printf("sleep interrompu\n");
+            break;
+        };
+
+        set_color(&led, BLUE);
+
+        // Sleep pendant 500ms
+        if(!running || (usleep(500 * 1000) == -1 && errno == EINTR)) {
+            if(debug>=3) printf("sleep interrompu\n");
+            break;
         }
-        #endif
+    }
+    
+    if((pid = waitpid(pid, &status, 0)) == -1) {
+        perror("wait(): erreur\n");
+        goto fail;
+    } else {
+        if (debug >= 3) printf("child a quitte avec %d\n", status);
 
-        // Faire un sleep + comparaison ctime() ?
-        // Led on/off
+        if (status != 0) {
+            goto fail;
+        }
     }
 
     // %============================================%
@@ -231,6 +251,8 @@ int main(int argc, char *argv[]) {
         // de la LED, dans ce cas on peut pas mettre la led en rouge car 
         // la led n'est pas initialisee justement
         // Rm: normalement avec un early exit apres init_led c'est bon
+        if (debug>=3) printf("Fail \n");
+        
         set_color(&led, RED);
 
         // Aller a la sortie: cleanup
