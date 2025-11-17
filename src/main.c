@@ -1,9 +1,15 @@
 #include "led.h"
+#include "math_suite.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+// a mettre en flag du makefile.
+#define USE_FORK 1
 
 #define RED_PIN 22
 #define GREEN_PIN 27
@@ -15,7 +21,7 @@
  * TODO: penser a reorganiser comme suit:
  * Puisque qu il faut allumer la LED en rouge en cas d erreur,
  * je propose de creer une fonction void exit_err(Led*);
- * Cependant c est compliqu√ car il faut idealement fermer toutes les 
+ * Cependant c est compliquÔøΩ car il faut idealement fermer toutes les 
  * resources (in, out, led) avant de quitter.
  *
  * Il me semble que les programmes utilisent un "goto" cleanup qui s'occupe de tout fermer
@@ -24,7 +30,7 @@
  * */
 
 int main(int argc, char *argv[]) {
-    /* Param√®tres du programm: pourra √ventuellement faire l'objet du structure d√di√©avec une fonction
+    /* Param√®tres du programm: pourra ÔøΩventuellement faire l'objet du structure dÔøΩdi√©avec une fonction
      * int parse_args(args*) */
     char     input[255] = {0}; /* --input <path> (optionel)  */
     char     output[255] = {0}; /* --output <path> (optionel) */
@@ -36,6 +42,10 @@ int main(int argc, char *argv[]) {
     int      i;
     FILE*    in  = 0;
     FILE*    out = 0;
+    #if USE_FORK
+    pid_t    pid;
+    int      status;
+    #endif
 
     /* Code de retour */
     int      ret = 0;
@@ -95,7 +105,7 @@ int main(int argc, char *argv[]) {
 
     if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
-    /* Initialiser la LED => peut-√™tre g√rer les erreur? */
+    /* Initialiser la LED => peut-√™tre gÔøΩrer les erreur? */
     if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN,
                 !SUPPORTS_HARDWARE_PWM) != 0) {
         fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
@@ -128,6 +138,52 @@ int main(int argc, char *argv[]) {
     }
 
     /* Executer la fonction solve() ?*/
+
+    #if USE_FORK
+        if(debug >= 3) printf("Execution du fork\n");
+
+        pid = fork();
+
+        if (pid == -1) {
+            fprintf(stderr, "Erreur: impossible de fork()\n");
+            goto fail;
+        }
+    
+        // Dans le child
+        if(pid == 0) {
+            if(debug >= 3) printf("Child pid=%d, ppid=%d\n", getpid(), getppid());
+            return solve(in, out, only_longest, debug);
+        } else {
+            if(debug >= 3) printf("Parent pid=%d\n", getpid());
+        }
+    #endif
+
+    // Ici on est d'office dans le parent
+    // -> Faire clignoter la LED.
+    
+    while(1) {
+        #if USE_FORK
+        
+        // Ou bien (peut etre plus efficace, gerer un SIGHANDLER pour SIGCHILD)
+        if((pid = waitpid(pid, &status, WNOHANG)) == -1) {
+            perror("wait(): erreur\n");
+            goto fail;
+        } else if (pid == 0) {
+            if (debug>=3) printf("child tourne encore\n");
+        } else {
+            if (debug >= 3) printf("child a quitte avec %d\n", status);
+
+            if (status == 0) {
+                break;
+            } else {
+                goto fail;
+            }
+        }
+        #endif
+
+        // Faire un sleep + comparaison ctime() ?
+        // Led on/off
+    }
 
     // %============================================%
     // | Fin du programme - Fermeture des resources |
