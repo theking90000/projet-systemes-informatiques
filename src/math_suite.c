@@ -1,6 +1,7 @@
 #include "math_suite.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define DEFAULT_SIZE 32
 
@@ -13,11 +14,11 @@ int alloc_string(String *string) {
 }
 
 int realloc_string(String *string) {
-    string->max_size *= 2;
-    string->ptr = reallocarray(string->ptr, string->max_size, sizeof(char));
-    memset(string->ptr, 0, string->max_size);
+    string->ptr = realloc(string->ptr, string->max_size*2 * sizeof(char));
     if (string->ptr == NULL)
         return -1;
+    memset(string->ptr + string->max_size, 0, string->max_size);
+    string->max_size *= 2;
     return 0;
 }
 
