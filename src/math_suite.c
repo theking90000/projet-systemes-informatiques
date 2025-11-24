@@ -238,16 +238,22 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                 s_new_end++;
             }
             
-            printf("Iter %d : s_new=%s\n", i, s_new.ptr);
+            if(debug >= 2)
+                printf("Iterating over %s gives %s\n", s.ptr, s_new.ptr);
+        
             copy_string(&s_new, &s);
             zero_string(&s_new);
-            
         }
+
+        if (debug >= 1)
+            printf("Result: %s\n", s.ptr);
 
         if (only_longest) {
             // Comparer avec List
         } else {
-            printf("s_new=%s\n",s_new.ptr);
+            // Write to output
+            fprintf(out, "%s\n", s.ptr);
+            // printf("s_new=%s\n",s_new.ptr);
             zero_string(&s_new);
         }
     }
