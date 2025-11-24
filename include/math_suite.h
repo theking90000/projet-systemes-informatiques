@@ -17,6 +17,9 @@ int solve(FILE*   in,
 
 int alloc_string(String *s);
 
+/* Check if indice i is accessible (< max_size-1) or reallocate until it is.  */
+int string_check(String *s, size_t i);
+
 char *realloc_string(String *s);
 
 int read_input(FILE* in, String* s, int* iter);

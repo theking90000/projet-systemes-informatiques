@@ -63,16 +63,30 @@ void copy_string(String *s, String *d) {
     }
 }
 
+int string_check(String *s, size_t i) {
+    //printf("String check i=%d, max_size=%d\n", i, s->max_size);
+    while (i >= s->max_size - 1) {
+        // printf("Realloc max_size=%d | %s \n", s->max_size, s->ptr);
+        if(realloc_string(s) == NULL)
+            return -1;
+        // printf("Done: %d\n",s->max_size, s->ptr);
+    }
+}
+
 /**
- * Incremente le compteur dans la string qui commence à l'endroit *begin
- * et se termine à l'endroid *end.
- * La fonction suppose que la string vaut '\0' après end et réallouera si nécessaire.
+ * Incremente le compteur dans la string qui commence à l'indice begin (inclusif)
+ * et se termine à l'indice *end (inclusif) (indices commençant par 0).
+ * 
+ * *end doit toujours être supérieur ou égal à begin et begin doit être >0.
+ * 
+ * Retourne -1 si erreur de réallocation.
+ * 
+ * La fonction suppose que la string vaut '\0' après *end et réallouera si nécessaire.
  * Si une retenu est nécessaire '9' la string sera décalée vers la droite
  * |9|9|9|X|X| -> |1|0|0|0|X|
  * 
  * Ex: 345 -> 346, 399 -> 400, 9 -> 10
- * Les valeur de *start et de *end
- * peuvent changer en cas de realloc ou d'overflow.
+ * L'indice *end peut augmenter en cas d'overflow. (start reste toujours au même indice)
  *
  * Entrée:
  *
@@ -86,39 +100,29 @@ void copy_string(String *s, String *d) {
  *         ^     ^
  *       start  end
  */
-void increment(String *s, char** begin, char** end) {
-    char *p1, *p2;
-    size_t p3;
+int increment(String *s, size_t begin, size_t *end) {
+    size_t p1, p2;
 
-    // Pas assez de place pour écrire à begin
-    // : augmenter la taille.
-    if (*begin - s->ptr  >= s->max_size) {
-        p3 = s->ptr;
-        *begin = realloc_string(s);
-        // Ajouter la distance entre (s->ptr avant et s->ptr après le realloc)
-        // Car tout bouge de la même manière.
-        p3 = (s->ptr - p3);
-        printf("Realloc à bougé de! %d\n", p3);
-        *end += p3;
-    }
+    string_check(s, begin);
 
-    // Si begin n'a jamais étée incrementée.
+    // Si [begin] n'a jamais étée incrementée.
     // Mettre sa valeur à zéro.
-    if(**begin == '\0')
-        **begin = '0';
+    if(s->ptr[begin] == '\0')
+        s->ptr[begin] = '0'; // équivalent a "*(s->ptr + begin)"
 
-    //printf("Increment %s %d-%d\n", s->ptr, (*begin-s->ptr), (*end-s->ptr));
+    //printf("Increment %s %d-%d\n", s->ptr, begin, *end);
 
-    for(p1 = *end; p1 > **begin; p1--) {
-        if (*p1 == '9') {
+    for(p1 = *end; p1 >= begin; p1--) {
+        //printf("p1=%d\n",p1);
+        if (s->ptr[p1] == '9') {
             // Algorithme de report
             // Regarder si il y a un chiffre disponible à gauche (pos-1) >= *begin
             // Si oui reporter a ce chiffre.
             // Sinon poser un '1', décaler tout vers la droit et mettre un zéro.
             
             // On ne reporte pas
-            if (p1-1 < *begin) {
-                *p1 = '1';
+            if (p1 == begin) {
+                s->ptr[p1] = '1';
                 // Pour l'instant
                 // décaler tout ici. et mettre un zéro
                 p1++;
@@ -127,25 +131,15 @@ void increment(String *s, char** begin, char** end) {
 
                 // Avant de shifter vers la droite.
                 // Vérifier si il y l'espace disponible pour le faire, sinon réallouer.
-                if (p2+1 - s->ptr >= s->max_size) {
-                    printf("REALLOC!\n");
-                    p3 = s->ptr;
-                    // Il faut repositionner p2, end, begin, p1 correctement
-                    p2 = realloc_string(s);
-                    p3 = s->ptr - p3;
-                    printf("String a bougé de %d\n",p3);
-                    *end += p3;
-                    *begin += p3;
-                    p1 += p3; 
-                }
+                string_check(s, p2+1);
 
                 while(p2 >= p1) {
                     // Décaler end vers end+1;
                     // TODO: Realloc
-                    *(p2+1) = *p2;
+                    s->ptr[p2+1] = s->ptr[p2];
                     p2--;
                 }
-                *(p1) = '0';
+                s->ptr[p1] = '0';
                 
                 *end += 1;
                 // printf("IncEND %d\n",(*end - s->ptr));
@@ -153,10 +147,10 @@ void increment(String *s, char** begin, char** end) {
                 break;
             }
 
-            *p1 = '0';
+            s->ptr[p1] = '0';
             // ça sera pour le suivant?
         } else {
-            *p1 += 1;
+            s->ptr[p1] += 1;
             break;
         }
     }
@@ -218,7 +212,7 @@ int read_input(FILE* in, String* s, int* iter) {
 int solve(FILE* in, FILE* out, int only_longest, int debug) {
     String  s, s_new;
     int     iter, i;
-    char   *s_ptr, *s_new_end, *s_new_start;
+    size_t  j, start, end;
 
     /*
      * s_new_end et s_new_start
@@ -275,9 +269,13 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
     // if(debug>=2) 
     //    printf("I will solve the file {} and write to {}, only longest {}\n", );
     
-    alloc_string(&s);
+    if (alloc_string(&s) == -1)
+        return -1;
+    
+
     if(!only_longest) {
-        alloc_string(&s_new);
+        if(alloc_string(&s_new) == -1)
+            return -1;
     }
 
     while(read_input(in, &s, &iter) == 0) {
@@ -286,23 +284,28 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
 
         for(i = 0; i < iter; i++) {
             if (debug >= 1) 
-                printf("Iteration %d\n", i);
+                printf("Iteration %d\n", i+1);
 
-            s_ptr = s.ptr;
-            s_new_end = s_new.ptr;
+            j = 0;
+            end = 0;
  
-            while(*s_ptr != '\0') {
+            while(s.ptr[j] != '\0') {
                 // Compter le nombre de '*s_ptr' identiques
-                s_new_start = s_new_end;
-                //printf("Nombre actuel a change (%c) str=%s |s_new=%s\n", *s_ptr, s.ptr, s_new.ptr);
-                increment(&s_new, &s_new_start, &s_new_end);
-                while (*s_ptr != '\0' && *s_ptr == *(++s_ptr)) {
+                start = end;
+                //printf("Nombre actuel a change (%c) str=%s |s_new=%s\n", s.ptr[j], s.ptr, s_new.ptr);
+                if(increment(&s_new, start, &end) == -1)
+                    return -1;
+                while (s.ptr[j] != '\0' && s.ptr[j] == s.ptr[++j]) {
                     // Incrémenter la case s_new_ptr;
-                    increment(&s_new, &s_new_start, &s_new_end);
+                    //printf("inc\n");
+                    if(increment(&s_new, start, &end) == -1)
+                        return -1;
                 }
-                // TODO: check realloc.
-                *(++s_new_end) = *(s_ptr-1);
-                s_new_end++;
+                //printf("--------------------------------------\n%s\n---------------\n",s_new.ptr);
+                if (string_check(&s_new, end+1) == -1)
+                    return -1;
+                s_new.ptr[++end] = s.ptr[j-1];
+                end++;
             }
             
             if(debug >= 2)
@@ -311,7 +314,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
             copy_string(&s_new, &s);
             zero_string(&s_new);
             // Pour tester
-            free_string(&s_new); alloc_string(&s_new);
+            //free_string(&s_new); alloc_string(&s_new);
         }
 
         if (debug >= 1)
