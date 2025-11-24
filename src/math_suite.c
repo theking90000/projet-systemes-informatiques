@@ -64,36 +64,91 @@ void copy_string(String *s, String *d) {
 }
 
 /**
- * Incremente le compteur dans la string qui commence à l'endroit *pos
+ * Incremente le compteur dans la string qui commence à l'endroit *begin
+ * et se termine à l'endroid *end.
+ * La fonction suppose que la string vaut '\0' après end et réallouera si nécessaire.
+ * Si une retenu est nécessaire '9' la string sera décalée vers la droite
+ * |9|9|9|X|X| -> |1|0|0|0|X|
+ * 
  * Ex: 345 -> 346, 399 -> 400, 9 -> 10
- * Retourne la position de fin du compteur dans la string
- * Et peut changer la valeur de *pos en cas de realloc
+ * Les valeur de *start et de *end
+ * peuvent changer en cas de realloc ou d'overflow.
  *
  * Entrée:
  *
  * s: |1|1|9|9|9|X|X|X|X
- *         ^
- *        pos
+ *         ^   ^
+ *       start end
  *
  * Sortie:
  *
  * s: |1|1|1|0|0|0|X|X|X|X
  *         ^     ^
- *        pos   fin
+ *       start  end
  */
-char* increment(String *s, char** pos) {
-    if (*pos - s->ptr  >= s->max_size) {
-        *pos = realloc_string(s);
+void increment(String *s, char** begin, char** end) {
+    char *p1, *p2;
+
+    p1 = *end - s->ptr;
+
+    // Pas assez de place pour écrire à begin
+    // : augmenter la taille.
+    if (*begin - s->ptr  >= s->max_size) {
+        *begin = realloc_string(s);
+        *end = s->ptr + (size_t)p1;
     }
 
-    if(**pos == '\0')
-        **pos = '0';
+    // Si begin n'a jamais étée incrementée.
+    // Mettre sa valeur à zéro.
+    if(**begin == '\0')
+        **begin = '0';
 
-    // TODO: gérer la retenue
+    // printf("Increment %s %d-%d\n", s->ptr, (*begin-s->ptr), (*end-s->ptr));
 
-    **pos += 1;
+    for(p1 = *end; p1 > **begin; p1--) {
+        if (*p1 == '9') {
+            // Algorithme de report
+            // Regarder si il y a un chiffre disponible à gauche (pos-1) >= *begin
+            // Si oui reporter a ce chiffre.
+            // Sinon poser un '1', décaler tout vers la droit et mettre un zéro.
+            
+            // On ne reporte pas
+            if (p1-1 < *begin) {
+                *p1 = '1';
+                // Pour l'instant
+                // décaler tout ici. et mettre un zéro
+                p1++;
+                
+                p2 = *end;
 
-    return *pos;
+                // Avant de shifter vers la droite.
+                // Vérifier si il y l'espace disponible pour le faire, sinon réallouer.
+                if (p2+1 - s->ptr >= s->max_size) {
+                    // Il faut repositionner p2, end, begin, p1 correctement
+                    
+                }
+
+                while(p2 >= p1) {
+                    // Décaler end vers end+1;
+                    // TODO: Realloc
+                    *(p2+1) = *p2;
+                    p2--;
+                }
+                *(p1) = '0';
+                
+                *end += 1;
+                // printf("IncEND %d\n",(*end - s->ptr));
+                // Décaler vers la droite.
+                break;
+            }
+
+            *p1 = '0';
+            // ça sera pour le suivant?
+        } else {
+            *p1 += 1;
+            break;
+        }
+    }
 }
 
 /**
@@ -229,11 +284,12 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                 // Compter le nombre de '*s_ptr' identiques
                 s_new_start = s_new_end;
                 //printf("Nombre actuel a change (%c) str=%s |s_new=%s\n", *s_ptr, s.ptr, s_new.ptr);
-                s_new_end = increment(&s_new, &s_new_start);
+                increment(&s_new, &s_new_start, &s_new_end);
                 while (*s_ptr != '\0' && *s_ptr == *(++s_ptr)) {
                     // Incrémenter la case s_new_ptr;
-                    s_new_end = increment(&s_new, &s_new_start);
+                    increment(&s_new, &s_new_start, &s_new_end);
                 }
+                // TODO: check realloc.
                 *(++s_new_end) = *(s_ptr-1);
                 s_new_end++;
             }

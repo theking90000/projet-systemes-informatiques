@@ -26,4 +26,4 @@ clean:
 
 .PHONY: run
 run: clean all
-	./bin/math_suite
+	./bin/math_suite --input input.txt
