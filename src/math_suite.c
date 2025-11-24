@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEFAULT_SIZE 32
+#define DEFAULT_SIZE 2
 
 /**
  * Alloue une nouvelle chaine de caractère (par défaut de taille maximale 32)
@@ -87,15 +87,18 @@ void copy_string(String *s, String *d) {
  *       start  end
  */
 void increment(String *s, char** begin, char** end) {
-    char *p1, *p2;
-
-    p1 = *end - s->ptr;
+    char *p1, *p2, *p3;
 
     // Pas assez de place pour écrire à begin
     // : augmenter la taille.
     if (*begin - s->ptr  >= s->max_size) {
+        p1 = s->ptr;
         *begin = realloc_string(s);
-        *end = s->ptr + (size_t)p1;
+        printf("REALLOC_BEGIN! %d\n", (s->ptr-p1));
+        // Ajouter la distance entre (s->ptr avant et s->ptr après le realloc)
+        // Car tout bouge de la même manière.
+        p1 = (s->ptr - p1);
+        *end += (size_t)p1;
     }
 
     // Si begin n'a jamais étée incrementée.
@@ -103,7 +106,7 @@ void increment(String *s, char** begin, char** end) {
     if(**begin == '\0')
         **begin = '0';
 
-    // printf("Increment %s %d-%d\n", s->ptr, (*begin-s->ptr), (*end-s->ptr));
+    printf("Increment %s %d-%d\n", s->ptr, (*begin-s->ptr), (*end-s->ptr));
 
     for(p1 = *end; p1 > **begin; p1--) {
         if (*p1 == '9') {
@@ -124,8 +127,15 @@ void increment(String *s, char** begin, char** end) {
                 // Avant de shifter vers la droite.
                 // Vérifier si il y l'espace disponible pour le faire, sinon réallouer.
                 if (p2+1 - s->ptr >= s->max_size) {
+                    printf("REALLOC!\n");
+                    p3 = s->ptr;
                     // Il faut repositionner p2, end, begin, p1 correctement
-                    
+                    p2 = realloc_string(s);
+                    p3 = s->ptr - p3;
+                    printf("String a bougé de %d\n",p3);
+                    *end += (size_t)p3;
+                    *begin += (size_t)p3;
+                    p1 += (size_t)p3; 
                 }
 
                 while(p2 >= p1) {
@@ -299,6 +309,8 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
         
             copy_string(&s_new, &s);
             zero_string(&s_new);
+            // Pour tester
+            free_string(&s_new); alloc_string(&s_new);
         }
 
         if (debug >= 1)
