@@ -160,7 +160,11 @@ int main(int argc, char *argv[]) {
         // Dans le child
         if(pid == 0) {
             if(debug >= 3) printf("Child pid=%d, ppid=%d\n", getpid(), getppid());
-            return solve(in, out, only_longest, debug);
+            ret = solve(in, out, only_longest, debug);
+            // Meme dans le child, il faut fermer les fd pour contenter valgrind
+            // Meme si en realite les open file objects restent ouvert tant qu'il y 
+            // a le parent ou l'enfant qui possede encore un fd pas fermé.
+            goto cleanup;
         } else {
             if(debug >= 3) printf("Parent pid=%d\n", getpid());
         }
@@ -231,7 +235,7 @@ int main(int argc, char *argv[]) {
     if(out && out != stdout) {
         if(debug >= 3) printf("Debug: fermeture du fichier %s\n", output);
 
-        if(fclose(in) != 0) {
+        if(fclose(out) != 0) {
             fprintf(stderr, "Erreur: impossible de fermer le fichier %s\n", output);
             /* Affichage de l'erreur en utilisant errno */
             fprintf(stderr, "(%s)\n", strerror(errno));

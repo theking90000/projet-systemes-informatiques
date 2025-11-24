@@ -11,3 +11,11 @@ Avant de pouvoir compiler le programme avec la commande `make`, il faut installe
 wget https://github.com/WiringPi/WiringPi/releases/download/3.16/wiringpi_3.16_arm64.deb
 sudo apt install ./wiringpi_3.16_arm64.deb
 ```
+
+## Vérification des fuites mémoires
+
+(Utiliser -O0 sur gcc pour afficher les numéro de lignes)
+
+```
+valgrind --trace-children=yes --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all ./bin/math_suite --input input.txt
+```
