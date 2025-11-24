@@ -42,7 +42,7 @@ void free_string(String *string) {
     string->ptr = NULL;
 }
 
-void* zero_string(String* s) {
+void zero_string(String* s) {
     memset(s->ptr, 0, s->max_size);
 }
 
@@ -55,7 +55,7 @@ void copy_string(String *s, String *d) {
     char* sp = s->ptr;
     char* dp = d->ptr;
     while (*sp != '\0') {
-        if (dp - d->ptr >= d->max_size)
+        if ((size_t)(dp - d->ptr) >= d->max_size)
             dp = realloc_string(d);
         *dp = *sp;
         sp++;
@@ -71,6 +71,8 @@ int string_check(String *s, size_t i) {
             return -1;
         // printf("Done: %d\n",s->max_size, s->ptr);
     }
+
+    return 0;
 }
 
 /**
@@ -103,7 +105,8 @@ int string_check(String *s, size_t i) {
 int increment(String *s, size_t begin, size_t *end) {
     size_t p1, p2;
 
-    string_check(s, begin);
+    if(string_check(s, begin) == -1)
+        return -1;
 
     // Si [begin] n'a jamais étée incrementée.
     // Mettre sa valeur à zéro.
@@ -131,7 +134,8 @@ int increment(String *s, size_t begin, size_t *end) {
 
                 // Avant de shifter vers la droite.
                 // Vérifier si il y l'espace disponible pour le faire, sinon réallouer.
-                string_check(s, p2+1);
+                if(string_check(s, p2+1) == -1)
+                    return -1;
 
                 while(p2 >= p1) {
                     // Décaler end vers end+1;
@@ -154,6 +158,8 @@ int increment(String *s, size_t begin, size_t *end) {
             break;
         }
     }
+
+    return 0;
 }
 
 /**
@@ -180,7 +186,7 @@ int read_input(FILE* in, String* s, int* iter) {
         if (c == ' ')
             break;
 
-        if (s_ptr - s->ptr >= s->max_size) {
+        if ((size_t) (s_ptr - s->ptr) >= s->max_size) {
             s_ptr = realloc_string(s);
             if (s_ptr == NULL)
                 return -1;
@@ -295,7 +301,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                 //printf("Nombre actuel a change (%c) str=%s |s_new=%s\n", s.ptr[j], s.ptr, s_new.ptr);
                 if(increment(&s_new, start, &end) == -1)
                     return -1;
-                while (s.ptr[j] != '\0' && s.ptr[j] == s.ptr[++j]) {
+                while (s.ptr[j++] != '\0' && s.ptr[j-1] == s.ptr[j]) {
                     // Incrémenter la case s_new_ptr;
                     //printf("inc\n");
                     if(increment(&s_new, start, &end) == -1)
