@@ -87,18 +87,19 @@ void copy_string(String *s, String *d) {
  *       start  end
  */
 void increment(String *s, char** begin, char** end) {
-    char *p1, *p2, *p3;
+    char *p1, *p2;
+    size_t p3;
 
     // Pas assez de place pour écrire à begin
     // : augmenter la taille.
     if (*begin - s->ptr  >= s->max_size) {
-        p1 = s->ptr;
+        p3 = s->ptr;
         *begin = realloc_string(s);
-        printf("REALLOC_BEGIN! %d\n", (s->ptr-p1));
         // Ajouter la distance entre (s->ptr avant et s->ptr après le realloc)
         // Car tout bouge de la même manière.
-        p1 = (s->ptr - p1);
-        *end += (size_t)p1;
+        p3 = (s->ptr - p3);
+        printf("Realloc à bougé de! %d\n", p3);
+        *end += p3;
     }
 
     // Si begin n'a jamais étée incrementée.
@@ -106,7 +107,7 @@ void increment(String *s, char** begin, char** end) {
     if(**begin == '\0')
         **begin = '0';
 
-    printf("Increment %s %d-%d\n", s->ptr, (*begin-s->ptr), (*end-s->ptr));
+    //printf("Increment %s %d-%d\n", s->ptr, (*begin-s->ptr), (*end-s->ptr));
 
     for(p1 = *end; p1 > **begin; p1--) {
         if (*p1 == '9') {
@@ -133,9 +134,9 @@ void increment(String *s, char** begin, char** end) {
                     p2 = realloc_string(s);
                     p3 = s->ptr - p3;
                     printf("String a bougé de %d\n",p3);
-                    *end += (size_t)p3;
-                    *begin += (size_t)p3;
-                    p1 += (size_t)p3; 
+                    *end += p3;
+                    *begin += p3;
+                    p1 += p3; 
                 }
 
                 while(p2 >= p1) {
