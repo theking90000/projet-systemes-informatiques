@@ -295,13 +295,13 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
             j = 0;
             end = 0;
  
-            while(s.ptr[j] != '\0') {
+            while(j < s.max_size && s.ptr[j] != '\0') {
                 // Compter le nombre de '*s_ptr' identiques
                 start = end;
                 //printf("Nombre actuel a change (%c) str=%s |s_new=%s\n", s.ptr[j], s.ptr, s_new.ptr);
                 if(increment(&s_new, start, &end) == -1)
                     return -1;
-                while (s.ptr[j++] != '\0' && s.ptr[j-1] == s.ptr[j]) {
+                while (++j < s.max_size && s.ptr[j] != '\0' && s.ptr[j-1] == s.ptr[j]) {
                     // Incrémenter la case s_new_ptr;
                     //printf("inc\n");
                     if(increment(&s_new, start, &end) == -1)
@@ -337,6 +337,9 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
     }
 
     free_string(&s);
+    if(!only_longest) {
+        free_string(&s_new);
+    }
 
     //sleep(2);
     return 0;
