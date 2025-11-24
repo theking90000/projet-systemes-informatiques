@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define DEFAULT_SIZE 32
 
@@ -19,6 +20,47 @@ int realloc_string(String *string) {
         return -1;
     memset(string->ptr + string->max_size, 0, string->max_size);
     string->max_size *= 2;
+    return 0;
+}
+
+int read_input(FILE* in, String* s, int* iter) {
+    char c;
+    char* s_ptr;
+
+    s_ptr = s->ptr;
+
+    while(1) {
+        c = fgetc(in);
+
+        if (c == EOF) 
+            return -1;
+
+        if (c == ' ')
+            break;
+
+        if (s_ptr - s->ptr >= s->max_size) {
+            // TODO
+        }
+
+        *s_ptr = c;
+        s_ptr++;
+    }
+
+    *iter = 0;
+
+    while(1) {
+        c = fgetc(in); 
+
+        if (c == EOF) 
+            return -1;
+
+        if (c == '\n')
+            break;
+
+        *iter *= 10;
+        *iter += c - '0';
+    }
+
     return 0;
 }
 
