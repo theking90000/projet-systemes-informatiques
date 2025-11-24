@@ -17,7 +17,7 @@ int solve(FILE*   in,
 
 int alloc_string(String *s);
 
-int realloc_string(String *s);
+char *realloc_string(String *s);
 
 int read_input(FILE* in, String* s, int* iter);
 
