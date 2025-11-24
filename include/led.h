@@ -10,6 +10,7 @@
 
 #define NO_PWM 0
 #define SOFT_PWM 1
+// HARD_PWM est jamais utilisé
 #define HARD_PWM 2
 
 typedef struct   Color {

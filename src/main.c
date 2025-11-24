@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 // a mettre en flag du makefile.
 #define USE_FORK 1
@@ -25,9 +26,9 @@
  * sig_atomic_t : type de donnees qui peut etre modifier dans un signal handler */
 volatile sig_atomic_t    running;
 
-void sig_handler(int signum) {
+void sig_handler() {
     // Informer que le SIGCHILD recu => le child ne tourne plus.
-    printf("Signal recu!!\n");
+    // printf("Signal recu!!\n");
     running = 0;
 }
 
@@ -191,7 +192,7 @@ int main(int argc, char *argv[]) {
     }
     
     #if USE_FORK
-    if((pid = waitpid(pid, &status, 0)) == -1) {
+    if(waitpid(pid, &status, 0) == -1) {
         perror("wait(): erreur\n");
         goto fail;
     } else {
