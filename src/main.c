@@ -37,8 +37,8 @@ void sig_handler() {
 int main(int argc, char *argv[]) {
     /* Paramètres du programm: pourra �ventuellement faire l'objet du structure d�diéavec une fonction
      * int parse_args(args*) */
-    char     input[255] = {0}; /* --input <path> (optionel)  */
-    char     output[255] = {0}; /* --output <path> (optionel) */
+    char     input[256] = {0}; /* --input <path> (optionel)  */
+    char     output[256] = {0}; /* --output <path> (optionel) */
     int      only_longest = 0; /* --only-longest (optionnel) */
     int      debug = 0; /* --debug <level> (optionnel) */
 

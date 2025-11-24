@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define DEFAULT_SIZE 2
+#define DEFAULT_SIZE 32
 
 /**
  * Alloue une nouvelle chaine de caractère (par défaut de taille maximale 32)
