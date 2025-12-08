@@ -69,7 +69,6 @@ int string_check(String *s, size_t i) {
             return -1;
         // printf("Done: %d\n",s->max_size, s->ptr);
     }
-
     return 0;
 }
 
