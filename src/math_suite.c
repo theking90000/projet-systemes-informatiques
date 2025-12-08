@@ -169,10 +169,10 @@ int increment(String *s, size_t begin, size_t *end) {
  * Stocke le nombre d'itération dans iter.
  */
 int read_input(FILE* in, String* s, int* iter) {
-    int c; /* Caractère lu à la position du curseur dans in */
-    char* s_ptr; /* Position actuelle dans la String s */
+    int    c; /* Caractère lu à la position du curseur dans in */
+    size_t i; /* Position actuelle dans la String s */
 
-    s_ptr = s->ptr;
+    i=0;
 
     // S'assurer que la string est vide.
     zero_string(s);
@@ -186,14 +186,10 @@ int read_input(FILE* in, String* s, int* iter) {
         if (c == ' ')
             break;
 
-        if ((size_t) (s_ptr - s->ptr) >= s->max_size) {
-            s_ptr = realloc_string(s);
-            if (s_ptr == NULL)
-                return -1;
-        }
+        string_check(s, i);
 
-        *s_ptr = c;
-        s_ptr++;
+        s->ptr[i] = c;
+        i++;
     }
 
     *iter = 0;
@@ -330,6 +326,10 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
             // Comparer avec List
         } else {
             // Write to output
+           // printf("end=%d\n",end);
+            //fwrite(s_new.ptr, sizeof(char), end, out);
+            //fprintf(out, )
+            // fwrite('\n', sizeof(char), 1, out);
             fprintf(out, "%s\n", s.ptr);
             // printf("s_new=%s\n",s_new.ptr);
             zero_string(&s_new);
