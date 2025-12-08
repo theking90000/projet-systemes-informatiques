@@ -121,6 +121,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
    // if(debug>=2) 
      //   printf("I will solve the file {} and write to {}, only longest {}\n", );
     
+    // TODO: /!\ Return -1, d'abord free toutes les res.
     if (alloc_string(&s) == -1)
         return -1;
     
@@ -183,10 +184,13 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                     clear_list(&longest);
                 case 0:
                     push_back(&longest, s);
+                    
+                    if(alloc_string(&s) == -1) {
+                        return -1;
+                    }
             }
             // printf("list\n");
             // print_list(out, &longest);
-            alloc_string(&s);
         } else {
             // Write to output
            // printf("end=%d\n",end);
@@ -200,9 +204,8 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
     }
 
     free_string(&s);
-    if(!only_longest) {
-        free_string(&s_new);
-    } else {
+    free_string(&s_new);
+    if(only_longest) {
         // Affiche contenu
         print_list(out, &longest);
         clear_list(&longest);
@@ -220,6 +223,7 @@ void get_compare_key(compare_key* k, String s) {
     short n;
     int   i;
     
+    n = 0;
     for (i = 0; s.ptr[i] != '\0'; i++) {
         n |= (1 << (s.ptr[i] - '0'));
     }
