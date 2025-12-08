@@ -36,7 +36,9 @@ char* realloc_string(m_string *string) {
 }
 
 void free_string(m_string *string) {
-    free(string->ptr);
+    if (string->ptr != NULL)
+        free(string->ptr);
+    
     string->ptr = NULL;
 }
 

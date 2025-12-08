@@ -57,13 +57,17 @@ int read_input(FILE* in, m_string* s, int* iter) {
 }
 
 int solve(FILE* in, FILE* out, int only_longest, int debug) {
-    m_string  s, s_new;
+    int ret; // Code de retour (pour la gestion des erreurs)
+
     int     iter, i;
     size_t  j, start, end;
 
+    m_string  s     = {0};
+    m_string  s_new = {0};
+
     // Pour le only_longest
-    m_list        longest;
-    compare_key longest_key;
+    m_list          longest = {0};
+    compare_key longest_key = {0};
 
 
     /*
@@ -122,12 +126,13 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
      //   printf("I will solve the file {} and write to {}, only longest {}\n", );
     
     // TODO: /!\ Return -1, d'abord free toutes les res.
-    if (alloc_string(&s) == -1)
-        return -1;
+    if (alloc_string(&s) == -1) {
+        ret = -1; goto clean;
+    }
     
-
-    if(alloc_string(&s_new) == -1)
-        return -1;
+    if(alloc_string(&s_new) == -1) {
+        ret = -1; goto clean;
+    }
 
     if (only_longest) {
         init_list(&longest);
@@ -149,17 +154,21 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                 // Compter le nombre de '*s_ptr' identiques
                 start = end;
                 //printf("Nombre actuel a change (%c) str=%s |s_new=%s\n", s.ptr[j], s.ptr, s_new.ptr);
-                if(increment(&s_new, start, &end) == -1)
-                    return -1;
+                if(increment(&s_new, start, &end) == -1) {
+                    // return -1;
+                    ret = -1; goto clean;
+                }
                 while (++j < s.max_size && s.ptr[j] != '\0' && s.ptr[j-1] == s.ptr[j]) {
                     // Incrémenter la case s_new_ptr;
                     //printf("inc\n");
-                    if(increment(&s_new, start, &end) == -1)
-                        return -1;
+                    if(increment(&s_new, start, &end) == -1) {
+                        ret = -1; goto clean;
+                    }
                 }
                 //printf("--------------------------------------\n%s\n---------------\n",s_new.ptr);
-                if (string_check(&s_new, end+1) == -1)
-                    return -1;
+                if (string_check(&s_new, end+1) == -1) {
+                    ret = -1; goto clean;
+                }
                 s_new.ptr[++end] = s.ptr[j-1];
                 end++;
             }
@@ -186,7 +195,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                     push_back(&longest, s);
                     
                     if(alloc_string(&s) == -1) {
-                        return -1;
+                        ret = -1; goto clean;
                     }
             }
             // printf("list\n");
@@ -203,16 +212,22 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
         }
     }
 
-    free_string(&s);
-    free_string(&s_new);
     if(only_longest) {
         // Affiche contenu
         print_list(out, &longest);
-        clear_list(&longest);
     }
 
-    //sleep(2);
-    return 0;
+    ret = 0;
+
+    clean:
+        free_string(&s);
+        free_string(&s_new);
+
+        if (only_longest) {
+            clear_list(&longest);
+        }
+
+    return ret;
 }
 
 void get_compare_key(compare_key* k, m_string s) {
