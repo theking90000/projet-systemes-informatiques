@@ -9,9 +9,6 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-// a mettre en flag du makefile.
-#define USE_FORK 1
-
 #define RED_PIN 22
 #define GREEN_PIN 27
 #define BLUE_PIN 17
@@ -170,9 +167,12 @@ int main(int argc, char *argv[]) {
         }
     #endif
 
+    #if SINGLE
+        solve(in, out, only_longest, debug);
+    
     // Ici on est d'office dans le parent
     // -> Faire clignoter la LED.
-    
+    #else
     #if USE_FORK
     while(running) {
     #endif
@@ -206,6 +206,7 @@ int main(int argc, char *argv[]) {
             goto fail;
         }
     }
+    #endif
     #endif
 
     // %============================================%
