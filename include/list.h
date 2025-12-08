@@ -12,7 +12,7 @@ typedef struct list_node {
 
 typedef struct      list {
 
-        list_node*  head
+        list_node*  head;
 
 }                   list;
 
