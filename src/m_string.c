@@ -64,6 +64,15 @@ void copy_string(m_string *s, m_string *d) {
     }
 }
 
+void swap_string(m_string *s1,
+                 m_string *s2) {
+    m_string temp;
+
+    temp = *s1;
+    *s1 = *s2;
+    *s2 = temp;
+}
+
 int string_check(m_string *s, size_t i) {
     //printf("m_string check i=%d, max_size=%d\n", i, s->max_size);
     while (i >= s->max_size - 1) {

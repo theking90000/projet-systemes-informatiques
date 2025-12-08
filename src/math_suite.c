@@ -7,6 +7,8 @@
 #include "m_string.h"
 #include "m_list.h"
 
+
+
 /**
  * Lis une ligne de l'entrée in,
  * Stocke le premier itéré dans la m_string s (s doit être alloué).
@@ -56,7 +58,11 @@ int read_input(FILE* in, m_string* s, int* iter) {
     return 0;
 }
 
-int solve(FILE* in, FILE* out, int only_longest, int debug) {
+int solve(FILE* in, FILE* out, int only_longest, int debug
+          #ifdef LED_SOLVE
+          ,Led*    led
+          #endif
+         ) {
     int ret; // Code de retour (pour la gestion des erreurs)
 
     int     iter, i;
@@ -69,6 +75,9 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
     m_list          longest = {0};
     compare_key longest_key = {0};
 
+    #ifdef LED_SOLVE
+    long long led_iter   = 0;
+    #endif
 
     /*
      * s_new_end et s_new_start
@@ -171,12 +180,26 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
                 }
                 s_new.ptr[++end] = s.ptr[j-1];
                 end++;
+                
+                #ifdef LED_SOLVE
+                led_iter++;
+                if (led_iter % 10000000 == 0) {
+                    //printf("C=BLUE %d\n", led_iter);
+                    set_color(led, BLUE);
+                } else if (led_iter % 10000000 == 5000000) {
+                    //printf("C=WHITE %d\n", led_iter);
+                    set_color(led, WHITE);
+                }
+                #endif
             }
             
             if(debug >= 2)
                 printf("Iterating over %s gives %s\n", s.ptr, s_new.ptr);
-        
-            copy_string(&s_new, &s);
+            
+            swap_string(&s, &s_new);
+            //printf("After swap: s=%s | s_new=%s\n", s.ptr, s_new.ptr);
+            //copy_string(&s_new, &s);
+
             zero_string(&s_new);
             // Pour tester
             //free_string(&s_new); alloc_string(&s_new);

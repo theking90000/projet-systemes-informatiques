@@ -4,6 +4,14 @@
 #include <stdio.h>
 #include "m_string.h"
 
+#if !defined(USE_FORK) && !defined(USE_THREAD) && !defined(NO_LED)
+    #define LED_SOLVE
+#endif
+
+#ifdef LED_SOLVE
+    #include "led.h"
+#endif
+
 typedef struct compare_key {
             int length;
             int ndiff ;
@@ -12,7 +20,11 @@ typedef struct compare_key {
 int solve(FILE*   in, 
           FILE*   out, 
           int     only_longest, 
-          int     debug);
+          int     debug
+          #ifdef LED_SOLVE
+          ,Led*    led
+          #endif
+         );
 
 int read_input(FILE* in, m_string* s, int* iter);
 

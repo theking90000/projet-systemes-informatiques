@@ -10,8 +10,6 @@ SRC      = $(wildcard $(SRC_DIR)/*.c)
 OBJ      = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 TARGET   = $(BIN_DIR)/math_suite
 
-
-SINGLE ?= 1
 NO_LED ?= 0
 THREAD ?= 0
 FORK   ?= 0
@@ -25,22 +23,16 @@ endif
 FORK ?= 0
 ifeq ($(FORK), 1)
     CFLAGS += -DUSE_FORK
-    SINGLE = 0
     THREAD = 0
 endif
 
 THREAD ?= 0
 ifeq ($(THREAD), 1)
-    CFLAGS += -DUSE_THREAD
-    SINGLE = 0
-    FORK = 0
+    CFLAGS += -DUSE_THREAD -lpthread
 endif
 
-ifeq ($(SINGLE), 1)
-    CFLAGS += -DSINGLE
-    ifeq ($(NO_LED), 1)
-	CFLAGS += -DNO_LED
-    endif
+ifeq ($(NO_LED), 1)
+    CFLAGS += -DNO_LED
 endif
 
 all: $(TARGET)

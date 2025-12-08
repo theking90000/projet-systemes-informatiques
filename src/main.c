@@ -9,10 +9,14 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#define RED_PIN 22
-#define GREEN_PIN 27
-#define BLUE_PIN 17
-#define POWER_PIN 26
+#if USE_THREAD
+    #include <pthread.h>
+#endif
+
+#define POWER_PIN 18
+#define RED_PIN 12
+#define GREEN_PIN 19
+#define BLUE_PIN 13
 #define PWM_TYPE NO_PWM
 
 #if USE_FORK
@@ -28,7 +32,19 @@ void sig_handler() {
     // printf("Signal recu!!\n");
     running = 0;
 }
+#elif USE_THREAD
+struct t_args {
+    FILE*   in;
+    FILE*   out;
+    int     only_longest;
+    int     debug;
+};
 
+void* thread_solve(void* args_void) {
+    struct t_args* args = (struct t_args*)args_void;
+
+    return (void*) solve(args->in, args->out, args->only_longest, args->debug);
+}
 #endif
 
 int main(int argc, char *argv[]) {
@@ -48,6 +64,9 @@ int main(int argc, char *argv[]) {
     #if USE_FORK
     pid_t    pid;
     int      status;
+    #elif USE_THREAD
+    pthread_t     thread;
+    struct t_args thread_args;
     #endif
 
     /* Code de retour */
@@ -165,17 +184,25 @@ int main(int argc, char *argv[]) {
         } else {
             if(debug >= 3) printf("Parent pid=%d\n", getpid());
         }
+    #elif USE_THREAD
+        if(debug >= 3) printf("Execution du thread\n");
+        thread_args.in = in;
+        thread_args.out = out;
+        thread_args.only_longest = only_longest;
+        thread_args.debug = debug;
+        pthread_create(&thread, NULL, thread_solve, (void*)&thread_args);
+    #else
+        solve(in, out, only_longest, debug
+        #ifdef LED_SOLVE
+        , &led
+        #endif
+        );
     #endif
 
-    #if SINGLE
-        solve(in, out, only_longest, debug);
-    
     // Ici on est d'office dans le parent
     // -> Faire clignoter la LED.
-    #else
     #if USE_FORK
     while(running) {
-    #endif
         if(debug>=3) printf("child tourne encore\n");
 
         set_color(&led, BLUE);
@@ -194,6 +221,7 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+    #endif
     
     #if USE_FORK
     if(waitpid(pid, &status, 0) == -1) {
@@ -206,7 +234,6 @@ int main(int argc, char *argv[]) {
             goto fail;
         }
     }
-    #endif
     #endif
 
     // %============================================%

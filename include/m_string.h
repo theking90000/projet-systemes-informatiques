@@ -25,6 +25,9 @@ void free_string(m_string *string);
 void copy_string(m_string *s,
                  m_string *d);
 
+void swap_string(m_string *s1,
+                 m_string *s2);
+
 int string_check(m_string *s,
                  size_t i);
 
