@@ -5,7 +5,7 @@
 
 #include "math_suite.h"
 #include "m_string.h"
-#include "list.h"
+#include "m_list.h"
 
 /**
  * Lis une ligne de l'entrée in,
@@ -62,7 +62,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
     size_t  j, start, end;
 
     // Pour le only_longest
-    list        longest;
+    m_list        longest;
     compare_key longest_key;
 
 
