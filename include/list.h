@@ -1,12 +1,12 @@
 #ifndef LIST_H
 #define LIST_H
 
-#include "cstring.h"
+#include "m_string.h"
 
 typedef struct list_node {
 
         struct list_node*  next;
-        String              value;
+        m_string              value;
 
 }              list_node;
 
@@ -19,7 +19,7 @@ typedef struct      list {
 void init_list (list*     l);
 
 int  push_back (list*     l,
-                String   value);
+                m_string   value);
 
 void clear_list(list*     l);
 

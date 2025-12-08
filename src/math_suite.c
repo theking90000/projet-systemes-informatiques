@@ -4,18 +4,18 @@
 #include <stdio.h>
 
 #include "math_suite.h"
-#include "cstring.h"
+#include "m_string.h"
 #include "list.h"
 
 /**
  * Lis une ligne de l'entrée in,
- * Stocke le premier itéré dans la String s (s doit être alloué).
+ * Stocke le premier itéré dans la m_string s (s doit être alloué).
  * Si le 1er itéré est trop grand, réalloue la string s.
  * Stocke le nombre d'itération dans iter.
  */
-int read_input(FILE* in, String* s, int* iter) {
+int read_input(FILE* in, m_string* s, int* iter) {
     int    c; /* Caractère lu à la position du curseur dans in */
-    size_t i; /* Position actuelle dans la String s */
+    size_t i; /* Position actuelle dans la m_string s */
 
     i=0;
 
@@ -57,7 +57,7 @@ int read_input(FILE* in, String* s, int* iter) {
 }
 
 int solve(FILE* in, FILE* out, int only_longest, int debug) {
-    String  s, s_new;
+    m_string  s, s_new;
     int     iter, i;
     size_t  j, start, end;
 
@@ -215,7 +215,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
     return 0;
 }
 
-void get_compare_key(compare_key* k, String s) {
+void get_compare_key(compare_key* k, m_string s) {
     // char n[10] = {0};
     
     // Chaque bit de 0 a 9 de n
@@ -249,7 +249,7 @@ int compare_result(compare_key k1, compare_key k2) {
     return -1;
 }
 
-int compare(compare_key* k, String s) {
+int compare(compare_key* k, m_string s) {
     compare_key k2;
     int        cmp;
 

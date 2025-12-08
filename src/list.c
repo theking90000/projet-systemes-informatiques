@@ -5,7 +5,7 @@ void init_list(list* l) {
     l->head = NULL;
 }
 
-int push_back(list* l, String value) {
+int push_back(list* l, m_string value) {
     int         pos;
     list_node* curr;
     list_node* node;

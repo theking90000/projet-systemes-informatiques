@@ -2,7 +2,7 @@
 #define MATH_SUITE
 
 #include <stdio.h>
-#include "cstring.h"
+#include "m_string.h"
 
 typedef struct compare_key {
             int length;
@@ -14,7 +14,7 @@ int solve(FILE*   in,
           int     only_longest, 
           int     debug);
 
-int read_input(FILE* in, String* s, int* iter);
+int read_input(FILE* in, m_string* s, int* iter);
 
 // Comparer 2 "Compare Key"
 // Retourne 
@@ -23,14 +23,14 @@ int read_input(FILE* in, String* s, int* iter);
 //  -1 si k1 < k2
 int compare_result(compare_key k1, compare_key k2);
 
-void get_compare_key(compare_key* k, String s);
+void get_compare_key(compare_key* k, m_string s);
 
 // Comparer la clÃ©actuelle de comparaison
-// (NULL si pas de clÃ)
+// (NULL si pas de clï¿½)
 // Avec la string 's'
 // Si la string key('s') > 'k' retourne 1 et stocke la nouvelle cle dans 'k'
 // Si key('s') < 'k' retourne -1 et ne fait rien
 // Si egal retourne 0
-int compare(compare_key* k, String s);
+int compare(compare_key* k, m_string s);
 
 #endif
