@@ -57,7 +57,8 @@ void print_list(FILE* out, m_list* l) {
     curr = l->head;
     
     while(curr != NULL) {
-        fprintf(out, "%s\n", curr->value.ptr);
+        // fprintf(out, "%s\n", curr->value.ptr);
+        print_string(out, &curr->value, string_length(&curr->value));
         curr = curr->next;
     }
 }

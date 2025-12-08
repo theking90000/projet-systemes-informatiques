@@ -1,6 +1,7 @@
 #include "m_string.h"
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define DEFAULT_SIZE 32
 
@@ -72,6 +73,41 @@ int string_check(m_string *s, size_t i) {
         // printf("Done: %d\n",s->max_size, s->ptr);
     }
     return 0;
+}
+
+size_t string_length(m_string *s) {
+    size_t len = 0;
+    while (len < s->max_size && s->ptr[len] != '\0') {
+        len++;
+    }
+    return len;
+}
+
+// Remplace fprintf(out, "%s\n", s.ptr);
+void print_string(FILE* out, m_string* s, size_t n) {
+    int fd;
+
+    if ((fd = fileno(out)) == -1)
+        return;
+
+    if (n > s->max_size)
+        n = s->max_size;
+
+    // Il reste de la place pour le '\n'
+    // Le rajouter
+    if (n < s->max_size) {
+        s->ptr[n++] = '\n';
+    }
+
+    // Appel système write(2)
+    // Plus rapide que fwrite qui utilise un buffer interne
+    // Et fprintf qui parse la chaine de caractère pour chercher des %
+    write(fd, s->ptr, n);
+
+    // Si il n'y avait plus de place pour le '\n'
+    if (n >= s->max_size) {
+        printf("\n");
+    } // else: on peut retirer le '\n' mais ce n'est pas nécessaire.
 }
 
 /**

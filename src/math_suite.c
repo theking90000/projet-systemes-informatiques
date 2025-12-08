@@ -201,12 +201,17 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
             // printf("list\n");
             // print_list(out, &longest);
         } else {
+            
             // Write to output
            // printf("end=%d\n",end);
             //fwrite(s_new.ptr, sizeof(char), end, out);
             //fprintf(out, )
             // fwrite('\n', sizeof(char), 1, out);
-            fprintf(out, "%s\n", s.ptr);
+            // fprintf(out, "%s\n", s.ptr);
+
+            // Etre sur que libc n'a pas de buffer en attente
+            fflush(out);
+            print_string(out, &s, end);
             // printf("s_new=%s\n",s_new.ptr);
             zero_string(&s_new);
         }
@@ -214,6 +219,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug) {
 
     if(only_longest) {
         // Affiche contenu
+        fflush(out);
         print_list(out, &longest);
     }
 
