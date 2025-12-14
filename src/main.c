@@ -17,7 +17,6 @@
 #define RED_PIN 12
 #define GREEN_PIN 19
 #define BLUE_PIN 13
-#define PWM_TYPE NO_PWM
 
 #if USE_FORK
 
@@ -48,7 +47,7 @@ void* thread_solve(void* args_void) {
 #endif
 
 int main(int argc, char *argv[]) {
-    /* Paramètres du programm: pourra �ventuellement faire l'objet du structure d�diéavec une fonction
+    /* Paramètres du programm: pourra éventuellement faire l'objet du structure dédié avec une fonction
      * int parse_args(args*) */
     char     input[256] = {0}; /* --input <path> (optionel)  */
     char     output[256] = {0}; /* --output <path> (optionel) */
@@ -128,7 +127,7 @@ int main(int argc, char *argv[]) {
     if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
     /* Initialiser la LED => peut-être g�rer les erreur? */
-    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN, PWM_TYPE) != 0) {
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN) != 0) {
         fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
         exit(1);
     }

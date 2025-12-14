@@ -3,51 +3,11 @@
 #include <softPwm.h>
 #include <stdio.h>
 
-int create_pwm(Led* led) {
-    if (led->pwm_type == HARD_PWM) {
-        pinMode(led->red_pin, PWM_OUTPUT);
-        pinMode(led->green_pin, PWM_OUTPUT);
-        pinMode(led->blue_pin, PWM_OUTPUT);
-        pinMode(led->power_pin, PWM_OUTPUT);
-
-        // Reset PWM
-        pwmWrite(led->red_pin, 255);
-        pwmWrite(led->green_pin, 255);
-        pwmWrite(led->blue_pin, 255);
-        pwmWrite(led->power_pin, 0);
-    } else {
-        pinMode(led->red_pin, OUTPUT);
-        pinMode(led->green_pin, OUTPUT);
-        pinMode(led->blue_pin, OUTPUT);
-        pinMode(led->power_pin, OUTPUT);
-    }
-
-    if (led->pwm_type == SOFT_PWM) {
-        /* TODO: gerer les erreurs (!=0) ici */
-        softPwmCreate(led->red_pin, 0, 255);
-        softPwmCreate(led->green_pin, 0, 255);
-        softPwmCreate(led->blue_pin, 0, 255);
-        softPwmCreate(led->power_pin, 0, 255);
-    }
-
-    return 0;
-}
-
-void destroy_pwm(Led* led) {
-    if (led->pwm_type == SOFT_PWM) {
-        softPwmStop(led->red_pin);
-        softPwmStop(led->green_pin);
-        softPwmStop(led->blue_pin);
-        softPwmStop(led->power_pin);
-    }
-}
-
 int init_led(Led*    led, 
              uint8_t red_pin, 
              uint8_t green_pin, 
              uint8_t blue_pin, 
-             uint8_t power_pin,
-             uint8_t pwm_type) {
+             uint8_t power_pin) {
     if(wiringPiSetupGpioDevice(WPI_PIN_BCM) != 0) {
         return 1;
     }
@@ -56,38 +16,24 @@ int init_led(Led*    led,
     led->green_pin = green_pin;
     led->blue_pin = blue_pin;
     led->power_pin = power_pin;
-    led->pwm_type = pwm_type;
-    
-    if(create_pwm(led) != 0) {
-        return 1;
-    }
+
+    pinMode(led->red_pin, OUTPUT);
+    pinMode(led->green_pin, OUTPUT);
+    pinMode(led->blue_pin, OUTPUT);
+    pinMode(led->power_pin, OUTPUT);
 
     return 0;
 }
 
 void set_color(Led *led, Color color) {
-    if (led->pwm_type == SOFT_PWM) {
-        softPwmWrite(led->red_pin, 255 - color.red);
-        softPwmWrite(led->green_pin, 255 - color.green);
-        softPwmWrite(led->blue_pin, 255 - color.blue);
-        softPwmWrite(led->power_pin, color.alpha);
-    } else if (led->pwm_type == HARD_PWM) {
-        pwmWrite(led->red_pin, 255 - color.red);
-        pwmWrite(led->green_pin, 255 - color.green);
-        pwmWrite(led->blue_pin, 255 - color.blue);
-        pwmWrite(led->power_pin, color.alpha);
-    } else {
-        // HIGH= pas de couleur, LOW=couleur
-        digitalWrite(led->red_pin, color.red == 0 ? HIGH : LOW);
-        digitalWrite(led->green_pin, color.green == 0 ? HIGH : LOW);
-        digitalWrite(led->blue_pin, color.blue == 0 ? HIGH : LOW);
-        digitalWrite(led->power_pin, color.alpha == 0 ? LOW : HIGH);
-    }
+    // HIGH= pas de couleur, LOW=couleur
+    digitalWrite(led->red_pin, color.red == 0 ? HIGH : LOW);
+    digitalWrite(led->green_pin, color.green == 0 ? HIGH : LOW);
+    digitalWrite(led->blue_pin, color.blue == 0 ? HIGH : LOW);
+    digitalWrite(led->power_pin, color.alpha == 0 ? LOW : HIGH);
 }
 
 void turn_off(Led *led) {
-    destroy_pwm(led);
-
     pinMode(led->red_pin, PM_OFF);
     pinMode(led->green_pin, PM_OFF);
     pinMode(led->blue_pin, PM_OFF);
