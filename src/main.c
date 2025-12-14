@@ -18,7 +18,6 @@
 #define GREEN_PIN 19
 #define BLUE_PIN 13
 
-#if USE_FORK
 
 /* Variable indiquant si le child tourne ou pas 
  * volatile : force le compilateur a reverifier la valeur en memoire a chaque fois
@@ -26,12 +25,15 @@
  * sig_atomic_t : type de donnees qui peut etre modifier dans un signal handler */
 volatile sig_atomic_t    running;
 
+#if USE_FORK
 void sig_handler() {
     // Informer que le SIGCHILD recu => le child ne tourne plus.
     // printf("Signal recu!!\n");
     running = 0;
 }
 #elif USE_THREAD
+static pthread_mutex_t running_lock = PTHREAD_MUTEX_INITIALIZER;
+
 struct t_args {
     FILE*   in;
     FILE*   out;
@@ -42,7 +44,13 @@ struct t_args {
 void* thread_solve(void* args_void) {
     struct t_args* args = (struct t_args*)args_void;
 
-    return (void*) solve(args->in, args->out, args->only_longest, args->debug);
+    int ret = solve(args->in, args->out, args->only_longest, args->debug);
+
+    pthread_mutex_lock(&running_lock);
+    running = 0;
+    pthread_mutex_unlock(&running_lock);
+
+    return (void*) ret;
 }
 #endif
 
@@ -190,6 +198,9 @@ int main(int argc, char *argv[]) {
         thread_args.only_longest = only_longest;
         thread_args.debug = debug;
         pthread_create(&thread, NULL, thread_solve, (void*)&thread_args);
+        pthread_mutex_lock(&running_lock);
+        running = 1;
+        pthread_mutex_unlock(&running_lock);
     #else
         solve(in, out, only_longest, debug
         #ifdef LED_SOLVE
@@ -200,7 +211,9 @@ int main(int argc, char *argv[]) {
 
     // Ici on est d'office dans le parent
     // -> Faire clignoter la LED.
-    #if USE_FORK
+
+    // Side note: pas de mutex sur la lecture car opération atomique
+    // mutex sur écriture pour éviter une écriture concurente
     while(running) {
         if(debug>=3) printf("child tourne encore\n");
 
@@ -220,7 +233,6 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
-    #endif
     
     #if USE_FORK
     if(waitpid(pid, &status, 0) == -1) {
@@ -230,6 +242,17 @@ int main(int argc, char *argv[]) {
         if (debug >= 3) printf("child a quitte avec %d\n", status);
 
         if (status != 0) {
+            goto fail;
+        }
+    }
+    #endif
+
+    #if USE_THREAD
+    if (pthread_join(thread, (void*)&ret) != 0) {
+        perror("thread(): erreur\n");
+        goto fail;
+    } else {
+        if (ret != 0) {
             goto fail;
         }
     }
