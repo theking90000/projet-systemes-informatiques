@@ -66,6 +66,8 @@ int copy_string(m_string *s, m_string *d) {
         sp++;
         dp++;
     }
+
+    return 0;
 }
 
 void swap_string(m_string *s1,

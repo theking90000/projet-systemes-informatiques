@@ -214,6 +214,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug
             switch (compare(&longest_key, s)) {
                 case 1:
                     clear_list(&longest);
+                    /* fallthrough */
                 case 0:
                     push_back(&longest, s);
                     
