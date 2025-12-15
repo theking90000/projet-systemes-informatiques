@@ -10,12 +10,15 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-
 #if USE_THREAD
     #include <pthread.h>
 #elif USE_FORK
     #include <setjmp.h>
     #include <signal.h>
+    // On met l'attribut statique pour eviter les warnings
+    // variable 'X' might be clobbered by 'longjmp' or 'vfork'
+    // ca fonctionne parce que main est appele une seule fois
+    #define VARIABLE_ATTR static
 #endif
 
 #define POWER_PIN 18
@@ -42,6 +45,7 @@ void sig_handler() {
 }
 #elif USE_THREAD
 static pthread_mutex_t running_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t running_cond = PTHREAD_COND_INITIALIZER;
 
 struct t_args {
     FILE*   in;
@@ -50,7 +54,7 @@ struct t_args {
     int     debug;
 };
 
-volatile running;
+volatile int running;
 
 void* thread_solve(void* args_void) {
     struct t_args* args = (struct t_args*)args_void;
@@ -59,8 +63,8 @@ void* thread_solve(void* args_void) {
 
     pthread_mutex_lock(&running_lock);
     running = 0;
+    pthread_cond_signal(&running_cond);
     pthread_mutex_unlock(&running_lock);
-    printf("mutex=false\n");
 
     return (void*) ret;
 }
@@ -71,14 +75,17 @@ int main(int argc, char *argv[]) {
      * int parse_args(args*) */
     char     input[256] = {0}; /* --input <path> (optionel)  */
     char     output[256] = {0}; /* --output <path> (optionel) */
-    int      only_longest = 0; /* --only-longest (optionnel) */
+    VARIABLE_ATTR int      only_longest = 0; /* --only-longest (optionnel) */
     int      debug = 0; /* --debug <level> (optionnel) */
 
     /* Variables utilisées par le programme */
-    Led      led;
-    int      i;
-    FILE*    in  = 0;
-    FILE*    out = 0;
+    VARIABLE_ATTR Led      led;
+    VARIABLE_ATTR int      i;
+    VARIABLE_ATTR FILE*    in  = 0;
+    VARIABLE_ATTR FILE*    out = 0;
+    #if USE_THREAD
+    struct timespec ts;
+    #endif
 
     #if USE_FORK
     pid_t    pid;
@@ -89,7 +96,7 @@ int main(int argc, char *argv[]) {
     #endif
 
     /* Code de retour */
-    int      ret = 0;
+    VARIABLE_ATTR int      ret = 0;
 
     /* Détecter les paramètres passés en argument du programme */
     for (i = 0; i < argc; i++) {
@@ -185,7 +192,6 @@ int main(int argc, char *argv[]) {
         if(sigsetjmp(env, 1) == 0) {
             if(debug >= 3) printf("Execution du fork\n");
 
-            running = 1;
             signal(SIGCHLD, sig_handler);
 
             pid = fork();
@@ -205,6 +211,13 @@ int main(int argc, char *argv[]) {
                 goto cleanup;
             } else {
                 if(debug >= 3) printf("Parent pid=%d\n", getpid());
+
+                while(1) {
+                    set_color(&led, BLUE);
+                    usleep(500 * 1000);
+                    set_color(&led, WHITE);
+                    usleep(500 * 1000);
+                }
             }
         }
     #elif USE_THREAD
@@ -229,38 +242,37 @@ int main(int argc, char *argv[]) {
     // Side note: pas de mutex sur la lecture car opération atomique
     // mutex sur écriture pour éviter une écriture concurent
     #if USE_THREAD
+    pthread_mutex_lock(&running_lock);
     while(running) {
-        if(debug>=3) printf("child tourne encore\n");
+        if(debug>=3) printf("thread tourne encore\n");
 
         set_color(&led, BLUE);
 
-        // Sleep pendant 500ms
-        if(!running || (usleep(500 * 1000) == -1 && errno == EINTR)) {
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += 500 * 1000 * 1000;
+
+        if (ts.tv_nsec >= 1000000000) {
+            ts.tv_nsec -= 1000000000;
+            ts.tv_sec += 1;
+        }
+
+        if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
             if(debug>=3) printf("sleep interrompu\n");
             break;
-        };
+        }
 
         set_color(&led, WHITE);
 
-        // Sleep pendant 500ms
-        if(!running || (usleep(500 * 1000) == -1 && errno == EINTR)) {
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += 500 * 1000 * 1000;
+        if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
             if(debug>=3) printf("sleep interrompu\n");
             break;
         }
     }
-    #elif USE_FORK
-    // Execution else du sigsetjmp, donc apres avoir ete appele par sig_handler
-    else { 
-        while(1) {
-            set_color(&led, BLUE);
-            usleep(500 * 1000);
-            set_color(&led, WHITE);
-            usleep(500 * 1000);
-        }
-    }
-    #endif
+    pthread_mutex_unlock(&running_lock);
     
-    #if USE_FORK
+    #elif USE_FORK
     if(waitpid(pid, &status, 0) == -1) {
         perror("wait(): erreur\n");
         goto fail;
@@ -317,6 +329,11 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "(%s)\n", strerror(errno));
         }
     }
+
+    #if USE_THREAD
+    pthread_mutex_destroy(&running_lock);
+    pthread_cond_destroy(&running_cond);
+    #endif
 
     // getchar() ou timeout puis?
     // turn_off(&led) ? 
