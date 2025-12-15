@@ -55,13 +55,13 @@ void zero_string(m_string* s) {
  * Copie le contenu de la chaine s (source) dans la chaine d (destination)
  * Réalloue la chaine d si elle est trop petite.
  */
-void copy_string(m_string *s, m_string *d) {
+int copy_string(m_string *s, m_string *d) {
     zero_string(d);
     char* sp = s->ptr;
     char* dp = d->ptr;
     while (*sp != '\0') {
-        if ((size_t)(dp - d->ptr) >= d->max_size)
-            dp = realloc_string(d);
+        if (string_check(d, dp - d->ptr) != 0)
+            return -1;
         *dp = *sp;
         sp++;
         dp++;

@@ -22,7 +22,7 @@ void zero_string(m_string* s);
 
 void free_string(m_string *string);
 
-void copy_string(m_string *s,
+int copy_string(m_string *s,
                  m_string *d);
 
 void swap_string(m_string *s1,
