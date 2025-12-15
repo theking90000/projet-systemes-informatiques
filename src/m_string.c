@@ -25,10 +25,14 @@ int alloc_string(m_string *string) {
  * ou NULL si une erreur.
  */
 char* realloc_string(m_string *string) {
-    string->ptr = realloc(string->ptr, string->max_size*2 * sizeof(char));
+    char* ptr;
     
-    if (string->ptr == NULL)
+    ptr = realloc(string->ptr, string->max_size*2 * sizeof(char));
+    
+    if (ptr == NULL)
         return NULL;
+
+    string->ptr = ptr;
 
     memset(string->ptr + string->max_size, 0, string->max_size);
     string->max_size *= 2;
@@ -115,7 +119,7 @@ void print_string(FILE* out, m_string* s, size_t n) {
 
     // Si il n'y avait plus de place pour le '\n'
     if (n >= s->max_size) {
-        fprintf(fd, "\n");
+        fprintf(out, "\n");
     } // else: on peut retirer le '\n' mais ce n'est pas nécessaire.
 }
 
