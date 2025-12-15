@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "led.h"
 #include "math_suite.h"
 
@@ -7,10 +9,13 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <signal.h>
+
 
 #if USE_THREAD
     #include <pthread.h>
+#elif USE_FORK
+    #include <setjmp.h>
+    #include <signal.h>
 #endif
 
 #define POWER_PIN 18
@@ -23,13 +28,17 @@
  * volatile : force le compilateur a reverifier la valeur en memoire a chaque fois
  *            et evite les optimisations du style cette valeur ne change jamais
  * sig_atomic_t : type de donnees qui peut etre modifier dans un signal handler */
-volatile sig_atomic_t    running;
+
+// volatile sig_atomic_t    running;
 
 #if USE_FORK
+sigjmp_buf env;
+
 void sig_handler() {
     // Informer que le SIGCHILD recu => le child ne tourne plus.
     // printf("Signal recu!!\n");
-    running = 0;
+    // running = 0;
+    siglongjmp(env, 1);
 }
 #elif USE_THREAD
 static pthread_mutex_t running_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -41,6 +50,8 @@ struct t_args {
     int     debug;
 };
 
+volatile running;
+
 void* thread_solve(void* args_void) {
     struct t_args* args = (struct t_args*)args_void;
 
@@ -49,6 +60,7 @@ void* thread_solve(void* args_void) {
     pthread_mutex_lock(&running_lock);
     running = 0;
     pthread_mutex_unlock(&running_lock);
+    printf("mutex=false\n");
 
     return (void*) ret;
 }
@@ -170,28 +182,30 @@ int main(int argc, char *argv[]) {
     /* Executer la fonction solve() ?*/
 
     #if USE_FORK
-        if(debug >= 3) printf("Execution du fork\n");
+        if(sigsetjmp(env, 1) == 0) {
+            if(debug >= 3) printf("Execution du fork\n");
 
-        running = 1;
-        signal(SIGCHLD, sig_handler);
+            running = 1;
+            signal(SIGCHLD, sig_handler);
 
-        pid = fork();
+            pid = fork();
 
-        if (pid == -1) {
-            fprintf(stderr, "Erreur: impossible de fork()\n");
-            goto fail;
-        }
+            if (pid == -1) {
+                fprintf(stderr, "Erreur: impossible de fork()\n");
+                goto fail;
+            }
     
-        // Dans le child
-        if(pid == 0) {
-            if(debug >= 3) printf("Child pid=%d, ppid=%d\n", getpid(), getppid());
-            ret = solve(in, out, only_longest, debug);
-            // Meme dans le child, il faut fermer les fd pour contenter valgrind
-            // Meme si en realite les open file objects restent ouvert tant qu'il y 
-            // a le parent ou l'enfant qui possede encore un fd pas fermé.
-            goto cleanup;
-        } else {
-            if(debug >= 3) printf("Parent pid=%d\n", getpid());
+            // Dans le child
+            if(pid == 0) {
+                if(debug >= 3) printf("Child pid=%d, ppid=%d\n", getpid(), getppid());
+                ret = solve(in, out, only_longest, debug);
+                // Meme dans le child, il faut fermer les fd pour contenter valgrind
+                // Meme si en realite les open file objects restent ouvert tant qu'il y 
+                // a le parent ou l'enfant qui possede encore un fd pas fermé.
+                goto cleanup;
+            } else {
+                if(debug >= 3) printf("Parent pid=%d\n", getpid());
+            }
         }
     #elif USE_THREAD
         if(debug >= 3) printf("Execution du thread\n");
@@ -199,10 +213,8 @@ int main(int argc, char *argv[]) {
         thread_args.out = out;
         thread_args.only_longest = only_longest;
         thread_args.debug = debug;
-        pthread_create(&thread, NULL, thread_solve, (void*)&thread_args);
-        pthread_mutex_lock(&running_lock);
         running = 1;
-        pthread_mutex_unlock(&running_lock);
+        pthread_create(&thread, NULL, thread_solve, (void*)&thread_args);
     #else
         solve(in, out, only_longest, debug
         #ifdef LED_SOLVE
@@ -215,7 +227,8 @@ int main(int argc, char *argv[]) {
     // -> Faire clignoter la LED.
 
     // Side note: pas de mutex sur la lecture car opération atomique
-    // mutex sur écriture pour éviter une écriture concurente
+    // mutex sur écriture pour éviter une écriture concurent
+    #if USE_THREAD
     while(running) {
         if(debug>=3) printf("child tourne encore\n");
 
@@ -235,6 +248,17 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+    #elif USE_FORK
+    // Execution else du sigsetjmp, donc apres avoir ete appele par sig_handler
+    else { 
+        while(1) {
+            set_color(&led, BLUE);
+            usleep(500 * 1000);
+            set_color(&led, WHITE);
+            usleep(500 * 1000);
+        }
+    }
+    #endif
     
     #if USE_FORK
     if(waitpid(pid, &status, 0) == -1) {
