@@ -115,7 +115,7 @@ void print_string(FILE* out, m_string* s, size_t n) {
 
     // Si il n'y avait plus de place pour le '\n'
     if (n >= s->max_size) {
-        printf("\n");
+        fprintf(fd, "\n");
     } // else: on peut retirer le '\n' mais ce n'est pas nécessaire.
 }
 
