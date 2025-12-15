@@ -146,9 +146,10 @@ int main(int argc, char *argv[]) {
         if (debug >= 3) printf("Debug: ouverture de %s\n", input);
 
         if((in = fopen(input, "r")) == NULL) {
-            printf("Erreur: impossible de lire le fichier %s\n", input);
+            //fprintf(stderr, "Erreur: impossible de lire le fichier %s\n", input);
             /* Affichage de l'erreur en utilisant errno */
-            printf("(%s)\n", strerror(errno));
+            //fprintf(stderr, "(%s)\n", strerror(errno));
+            perror("Erreur: impossible de lire le fichier");
             goto fail;
         }
     }
@@ -159,8 +160,9 @@ int main(int argc, char *argv[]) {
         if(debug >= 3) printf("Debug: ouverture de %s en écriture\n", output);
 
         if ((out=fopen(output, "w")) == NULL) {
-            fprintf(stderr, "Erreur: impossible d'écrire le fichier %s\n", output);
-            fprintf(stderr, "(%s)\n", strerror(errno));
+            // fprintf(stderr, "Erreur: impossible d'écrire le fichier %s\n", output);
+            // fprintf(stderr, "(%s)\n", strerror(errno));
+            perror("Erreur: impossible d'ouvrir le fichier en ecriture");
             goto fail;
         }
     }
