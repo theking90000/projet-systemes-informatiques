@@ -12,13 +12,19 @@
 
 #if USE_THREAD
     #include <pthread.h>
+    #include <time.h>
 #elif USE_FORK
     #include <setjmp.h>
     #include <signal.h>
+    #include <time.h>
     // On met l'attribut statique pour eviter les warnings
     // variable 'X' might be clobbered by 'longjmp' or 'vfork'
     // ca fonctionne parce que main est appele une seule fois
     #define VARIABLE_ATTR static
+#endif
+
+#ifndef VARIABLE_ATTR
+    #define VARIABLE_ATTR
 #endif
 
 #define POWER_PIN 18
@@ -84,15 +90,16 @@ int main(int argc, char *argv[]) {
     VARIABLE_ATTR FILE*    in  = 0;
     VARIABLE_ATTR FILE*    out = 0;
     #if USE_THREAD
-    struct timespec ts;
     #endif
 
     #if USE_FORK
-    pid_t    pid;
-    int      status;
+    pid_t           pid;
+    int             status;
+    struct timespec ts;
     #elif USE_THREAD
-    pthread_t     thread;
-    struct t_args thread_args;
+    pthread_t       thread;
+    struct t_args   thread_args;
+    struct timespec ts;
     #endif
 
     /* Code de retour */
@@ -212,11 +219,16 @@ int main(int argc, char *argv[]) {
             } else {
                 if(debug >= 3) printf("Parent pid=%d\n", getpid());
 
+                ts.tv_sec = 0;
+                ts.tv_nsec = 500 * 1000 * 1000; /* 500ms */
+
                 while(1) {
+                    if (debug >= 3) printf("Led Bleu\n");
                     set_color(&led, BLUE);
-                    usleep(500 * 1000);
+                    nanosleep(&ts, NULL);
+                    if (debug >= 3) printf("Led Blanc\n");
                     set_color(&led, WHITE);
-                    usleep(500 * 1000);
+                    nanosleep(&ts, NULL);
                 }
             }
         }
@@ -242,7 +254,6 @@ int main(int argc, char *argv[]) {
     // Side note: pas de mutex sur la lecture car opération atomique
     // mutex sur écriture pour éviter une écriture concurent
     #if USE_THREAD
-    pthread_mutex_lock(&running_lock);
     while(running) {
         if(debug>=3) printf("thread tourne encore\n");
 
@@ -256,6 +267,7 @@ int main(int argc, char *argv[]) {
             ts.tv_sec += 1;
         }
 
+        pthread_mutex_lock(&running_lock);
         if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
             if(debug>=3) printf("sleep interrompu\n");
             break;
@@ -269,8 +281,8 @@ int main(int argc, char *argv[]) {
             if(debug>=3) printf("sleep interrompu\n");
             break;
         }
+        pthread_mutex_unlock(&running_lock);
     }
-    pthread_mutex_unlock(&running_lock);
     
     #elif USE_FORK
     if(waitpid(pid, &status, 0) == -1) {
