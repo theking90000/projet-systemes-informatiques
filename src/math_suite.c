@@ -33,7 +33,8 @@ int read_input(FILE* in, m_string* s, int* iter) {
         if (c == ' ')
             break;
 
-        string_check(s, i);
+        if(string_check(s, i) == -1)
+            return -1;
 
         s->ptr[i] = c;
         i++;
