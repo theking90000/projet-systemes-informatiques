@@ -105,12 +105,18 @@ int main(int argc, char *argv[]) {
     /* Code de retour */
     VARIABLE_ATTR int      ret = 0;
 
+    /* Initialiser la LED => peut-être g�rer les erreur? */
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN) != 0) {
+        fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
+        exit(1);
+    }
+
     /* Détecter les paramètres passés en argument du programme */
     for (i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--input") == 0) {
             if (i+1 >= argc) {
                 fprintf(stderr, "Mauvais usage: --input attend un argument\n");
-                exit(1);
+                goto fail;
             }
 
             strncpy(input, argv[++i], 255);
@@ -118,8 +124,8 @@ int main(int argc, char *argv[]) {
 
         if(strcmp(argv[i], "--output") == 0) {
            if(i+1 >= argc) {
-               fprintf(stderr, "Mauvais usage: --output attend un argument\n");
-               exit(1);
+              fprintf(stderr, "Mauvais usage: --output attend un argument\n");
+              goto fail;
            }
 
             strncpy(output, argv[++i], 255);
@@ -132,15 +138,15 @@ int main(int argc, char *argv[]) {
         if (strcmp(argv[i], "--debug") == 0) {
             if(i+1 >= argc) {
                 fprintf(stderr, "Mauvais usage: --debug attend un argument\n");
-                exit(1);
+                goto fail;
             }
 
             // atoi, strtol ne retourne pas si il y a eu une erreur (juste 0)
             // debug = strtol(argv[i+1], NULL, 10);
 
             if (sscanf(argv[++i], "%d", &debug) == 0) {
-               fprintf(stderr, "Mauvais usage: --debug attend un argument entier\n");
-               exit(1);
+                fprintf(stderr, "Mauvais usage: --debug attend un argument entier\n");
+                goto fail;
             }
         }
     }
@@ -158,13 +164,8 @@ int main(int argc, char *argv[]) {
     // %--------------------%
 
 
-    if (debug >= 3) printf("Debug: initialisation de la LED\n");
+    // if (debug >= 3) printf("Debug: initialisation de la LED\n");
 
-    /* Initialiser la LED => peut-être g�rer les erreur? */
-    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN) != 0) {
-        fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
-        exit(1);
-    }
 
     if (strlen(input) == 0) {
         in = stdin;
