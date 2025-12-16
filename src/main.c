@@ -278,6 +278,12 @@ int main(int argc, char *argv[]) {
 
         clock_gettime(CLOCK_REALTIME, &ts);
         ts.tv_nsec += 500 * 1000 * 1000;
+
+        if (ts.tv_nsec >= 1000000000) {
+            ts.tv_nsec -= 1000000000;
+            ts.tv_sec += 1;
+        }
+
         if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
             if(debug>=3) printf("sleep interrompu\n");
             break;
