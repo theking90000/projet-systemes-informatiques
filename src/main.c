@@ -312,6 +312,7 @@ int main(int argc, char *argv[]) {
         perror("thread(): erreur\n");
         goto fail;
     } else {
+        ret = (int)(long) thread_ret;
         if (thread_ret != 0) {
             goto fail;
         }

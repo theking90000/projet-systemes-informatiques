@@ -285,13 +285,13 @@ void get_compare_key(compare_key* k, m_string s) {
 }
 
 int compare_result(compare_key k1, compare_key k2) {
-    if (k1.length == k2.length) {
-        if (k1.ndiff == k2.ndiff) return 0;
-        if (k1.ndiff > k2.ndiff) return 1;
+    if (k1.ndiff == k2.ndiff) {
+        if (k1.length == k2.length) return 0;
+        if (k1.length > k2.length) return 1;
         return -1;
     }
 
-    if (k1.length > k2.length) return 1;
+    if (k1.ndiff > k2.ndiff) return 1;
     return -1;
 }
 
