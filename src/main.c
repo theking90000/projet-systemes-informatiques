@@ -72,7 +72,7 @@ void* thread_solve(void* args_void) {
     pthread_cond_signal(&running_cond);
     pthread_mutex_unlock(&running_lock);
 
-    return (void*) ret;
+    return (void*) ((long)ret);
 }
 #endif
 
@@ -100,6 +100,7 @@ int main(int argc, char *argv[]) {
     pthread_t       thread;
     struct t_args   thread_args;
     struct timespec ts;
+    void*           thread_ret;
     #endif
 
     /* Code de retour */
@@ -271,6 +272,7 @@ int main(int argc, char *argv[]) {
         pthread_mutex_lock(&running_lock);
         if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
             if(debug>=3) printf("sleep interrompu\n");
+            pthread_mutex_unlock(&running_lock);
             break;
         }
 
@@ -286,6 +288,7 @@ int main(int argc, char *argv[]) {
 
         if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
             if(debug>=3) printf("sleep interrompu\n");
+            pthread_mutex_unlock(&running_lock);
             break;
         }
         pthread_mutex_unlock(&running_lock);
@@ -305,11 +308,11 @@ int main(int argc, char *argv[]) {
     #endif
 
     #if USE_THREAD
-    if (pthread_join(thread, (void*)&ret) != 0) {
+    if (pthread_join(thread, &thread_ret) != 0) {
         perror("thread(): erreur\n");
         goto fail;
     } else {
-        if (ret != 0) {
+        if (thread_ret != 0) {
             goto fail;
         }
     }
