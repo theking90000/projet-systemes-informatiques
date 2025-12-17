@@ -13,8 +13,8 @@
 #endif
 
 typedef struct compare_key {
-            int length;
-            int ndiff ;
+            size_t length;
+            short  ndiff ;
 }              compare_key;
 
 int solve(FILE*   in, 

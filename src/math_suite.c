@@ -266,8 +266,8 @@ void get_compare_key(compare_key* k, m_string s) {
     
     // Chaque bit de 0 a 9 de n
     // Indique la presence du nombre;
-    short n;
-    int   i;
+    short  n;
+    size_t i;
     
     n = 0;
     for (i = 0; s.ptr[i] != '\0'; i++) {
