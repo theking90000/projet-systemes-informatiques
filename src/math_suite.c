@@ -77,7 +77,7 @@ int solve(FILE* in, FILE* out, int only_longest, int debug
     compare_key longest_key = {0};
 
     #ifdef LED_SOLVE
-    long long led_iter   = 0;
+    unsigned long long led_iter   = 0;
     #endif
 
     /*
