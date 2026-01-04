@@ -1,0 +1,1038 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage[hidelinks, pdftex]{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{minted} 
+\usepackage[shortlabels]{enumitem}
+\usepackage[bottom]{footmisc}
+\usepackage{xstring}
+\usepackage{array}
+
+\geometry{margin=2cm}
+\setlength{\parskip}{1em}
+\setlength{\parindent}{0pt}
+\captionsetup{font=small, labelfont=bf}
+\renewcommand{\figurename}{Fig.}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\texttt{I-CYSI-002} Rapport de Projet}
+\fancyhead[R]{Martin Coghetto, Alexandre Daoust, Louis Garlement}
+\fancyfoot[C]{\thepage}
+
+\usepackage{titlesec}
+\titlespacing*{\section}
+  {0pt}{0.8em plus 0.2em minus 0.2em}{0.5em}
+\titlespacing*{\subsection}
+  {0pt}{0.6em plus 0.2em minus 0.2em}{0.3em}
+\titlespacing*{\subsubsection}
+  {0pt}{0.4em plus 0.1em minus 0.1em}{0.2em}
+
+\setlength{\parskip}{0.5em}
+
+\setlength{\parindent}{0pt}
+
+\setlist[itemize]{noitemsep, topsep=0.3em}
+\setlist[enumerate]{noitemsep, topsep=0.3em}
+
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{0pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 4pt}
+\setlength{\intextsep}{6pt plus 1pt minus 2pt}
+
+\setcounter{secnumdepth}{4} 
+\setcounter{tocdepth}{4}
+
+\titleformat{\paragraph}
+{\normalfont\fontsize{11.2}{12}\bfseries}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+
+\AtBeginDocument{
+  \setlength{\abovedisplayskip}{6pt plus 2pt minus 2pt}
+  \setlength{\belowdisplayskip}{6pt plus 2pt minus 2pt}
+}
+
+
+\makeatletter
+    \AtBeginDocument{
+      \hypersetup{
+        pdftitle = {Systèmes Informatiques (I-CYSI-002) : Rapport de Projet},
+        pdfauthor = {Martin Coghetto, Alexandre Daoust, Louis Garlement (Groupe 2)}
+      }
+    }
+\makeatother
+
+\title{
+  \vspace{2cm}
+  \textbf{\Huge Rapport de Projet}\\[0.4cm]
+  \large Systèmes Informatiques \texttt{(I-CYSI-002)}
+} 
+\author{
+  Martin Coghetto \and Alexandre Daoust \and Louis Garlement \\
+  %Sous la direction de Quentin De Coninck
+}
+\date{18 décembre 2025}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\newpage
+\tableofcontents
+\newpage
+
+\interfootnotelinepenalty=10000
+
+\section{Introduction}
+
+En addition à l'énoncé initial, ce projet traite la résolution du problème de la suite de Conway de deux autres façons, la première utilisant l'appel système \texttt{fork(2)}, et la seconde implémentant le calcul avec la fonction \texttt{pthread(3)}.
+
+Ce rapport détaille la réalisation du projet. Il est composé de quatre parties : Implémentation, Validation et tests, Performance et Conclusion.
+
+
+
+% faire une introduction ?
+% On va comparer 
+% - Python
+% - C "naïve" (solve)
+% - C (fork)
+% - C (thread)
+
+Dans le respect de la \href{https://web.umons.ac.be/app/uploads/sites/34/2024/05/CharteIA-UMONS.pdf}{Charte d'utilisation des systèmes d’intelligence artificielle générative de l'UMONS}, nous précisons qu'un outil d'intelligence artificielle a été utilisé exclusivement en tant qu'assistant linguistique (relecture et correction syntaxique) sur le rapport écrit. L'intégralité du code, de l'analyse et de la structure du projet est le fruit de notre propre travail.
+
+\section{Implémentation} 
+
+L'implémentation du programme a été réalisée directement sur le Raspberry Pi, en utilisant une connexion ssh. Nous avons utilisé \texttt{git} afin de versionner le code et sauvegarder une copie du dépôt sur \texttt{Github}. Pour accéder au Raspberry Pi depuis l'extérieur, celui-ci était connecté à notre réseau \href{https://tailscale.com/}{Tailscale}, permettant à tout les membres du groupe de travailler simultanément sur le Raspberry Pi à distance.
+
+
+\subsection{Structures de données}
+
+Lors de la conception de notre programme, nous avons tenu compte des limites matérielles du Raspberry Pi. En effet, la suite de Conway explose en taille de manière exponentielle. Avec comme itéré initial $1$, $10$ itérations de la suite donnent $26$ caractères en sortie. Si nous réalisons $70$ itérations, la sortie est longue de $234\,241\,787$ caractères. En considérant 1 octet par caractère, cela donne 234 méga-octets rien que pour stocker ou afficher le résultat de la suite. Pour $73$ itérations, on retrouve $518\,891\,359$ caractères (519 méga-octets).
+
+L'implémentation de notre programme utilise une structure de données optimisée permettant de gérer ces gros volumes de mémoire nommée \texttt{m\_string}\footnote{Le préfixe \texttt{m} a été choisi de manière totalement arbitraire. Celui-ci représente le "m" de Math ou Mathsuite, et permet d'éviter les potentielles confusions avec des types de données d'autres langages ou bibliothèques lors de la lecture du code.}. Malheureusement, la complexité de l'évolution de la suite de Conway rend impossible la réalisation d'optimisations sur le calcul. Étant donné que pour un itéré $i$ donné, la taille de l'itéré $i+1$ est nécessairement supérieure, cela rend impossible la réutilisation d'une seule allocation de chaîne de caractères ; nous sommes donc forcés d'en allouer deux : une pour l'itéré $i$ en entrée et une pour la génération de l'itéré $i+1$ en sortie.
+
+Afin de gérer le cas \texttt{--only-longest} du programme, c'est-à-dire n'afficher que le(s) résultat(s) les plus longs et ayant le plus de chiffres différents, nous avons implémenté une liste chaînée. En effet, étant donné qu'il est possible qu'il y ait plus d'un résultat "le plus long", nous ne pouvions pas simplement stocker le résultat dans une variable ; il nous fallait une manière robuste de gérer une liste de plusieurs résultats. L'implémentation d'une liste doublement chaînée ayant été vue au TP, nous avons décidé d'implémenter une liste chaînée dans notre programme.
+
+\subsubsection{Chaîne de caractères dynamique (\texttt{m\_string})}
+\label{m_string}
+
+Nous avons donc implémenté une chaîne de caractères à allocation dynamique. La structure C présentée ci-dessous contient deux attributs : un pointeur vers le début de la chaîne de caractères nommé \texttt{ptr} ainsi que la taille maximale de la chaîne de caractères \texttt{max\_size}. Le type \texttt{size\_t} permet de stocker une quantité d'octets comme défini dans \texttt{size\_t(3type)} ; sur notre Raspberry Pi, celui-ci fait 64 bits, soit 8 octets.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+typedef struct  m_string {
+        char    *ptr;
+        size_t  max_size;
+}               m_string;
+\end{minted}
+
+Nous utilisons \texttt{calloc(3)} pour allouer la chaîne de caractères. Par défaut, la chaîne de caractères est initialisée avec une taille d'allocation \texttt{max\_size} égale à $32$ caractères. La taille effective de la chaîne de caractères n'est pas connue à l'avance car la chaîne est délimitée par le caractère \texttt{\textbackslash 0}. En utilisant calloc, nous nous assurons que le bloc de mémoire pointé par \texttt{*ptr} et de taille \texttt{max\_string} ne contient que le caractère \texttt{\textbackslash 0}. La chaîne de caractères est donc de taille nulle.
+
+\paragraph*{Réallocation de la chaîne de caractères}
+
+Lorsque la taille allouée de la chaîne ne suffit plus, le programme utilise la fonction \texttt{realloc\_string}. Celle-ci récupère un pointeur vers la structure string à agrandir. Par défaut, nous doublons \texttt{max\_size} à chaque appel ; cela permet d'amortir le coût du redimensionnement \texttt{realloc(3)} du bloc de mémoire pour les grandes chaînes. Pour les petites chaînes, cela maintient le compromis du nombre de réallocations assez faible.
+
+Lorsque nous utilisons \texttt{realloc(3)}, il est possible que la chaîne de caractères soit déplacée par l'allocateur de mémoire. Supposons que l'allocateur alloue deux chaînes de 32 caractères à la suite. Si l'on veut doubler la taille de la première, il faut la déplacer à la fin de la deuxième, et donc son adresse change. De plus, la fonction \texttt{realloc\_string} gère les erreurs d'allocations en retournant NULL (0) si \texttt{realloc} a échoué, ce qui peut se produire s'il n'y a plus de mémoire disponible sur le Raspberry Pi.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+char* realloc_string(m_string *string) {
+    char* ptr;
+
+    ptr = realloc(string->ptr, string->max_size*2 * sizeof(char));
+
+    if (ptr == NULL)
+        return NULL;
+
+    string->ptr = ptr;
+
+    memset(string->ptr + string->max_size, 0, string->max_size);
+    string->max_size *= 2;
+
+    return string->ptr + (string->max_size/2);
+}
+\end{minted}
+
+Nous avons également implémenté plusieurs fonctions utilitaires permettant la manipulation de nos chaînes de caractères : \texttt{free\_string(m\_string* s)}, \texttt{zero\_string(m\_string* s)}, \texttt{copy\_string(m\_string* src, m\_string* dest)}, \texttt{swap\_string(m\_string* s1, m\_string* s2)}, \texttt{string\_length(m\_string *s)}.
+
+\subsubsection{Affichage d'une chaîne de caractères}
+
+La fonction \texttt{print\_string(FILE* out, m\_string* s, size\_t n)} permet d'écrire la chaîne de caractères dans le descripteur de fichier associé à "out". Cette dernière prend en paramètre la chaîne de caractères ainsi que sa taille.
+
+Celle-ci remplace l'appel à \texttt{fprintf(out, "\%s\\n", s.ptr)} fourni par la bibliothèque standard en utilisant directement l'appel système \texttt{write(2)}.
+
+En effet, elle permet trois optimisations importantes :
+
+\begin{enumerate}
+    \item Cela ne demande pas de réaliser l'analyse de la chaîne de format passée en argument. Celle-ci contient "\%s", demandant l'affichage du premier paramètre en tant que string, ce qui a un coût.
+    \item Contrairement à \texttt{fprintf}, notre fonction \texttt{print\_string} connaît la taille de la chaîne de caractères à l'avance, et ne doit pas itérer sur chaque caractère jusqu'à trouver un \texttt{\textbackslash 0} (strlen implicite).
+    \item Nous réalisons directement un appel système, ce qui évite de passer par le buffer interne de la libc ; nous écrivons directement dans le fichier.
+\end{enumerate}
+
+Cette fonction possède deux garde-fous : le premier vérifie si le descripteur de fichier passé en argument est valide en récupérant son numéro, le second vérifie que la taille de la chaîne de caractères ne dépasse pas la taille allouée.
+
+Étant donné que nous contournons le buffer interne de la libc, nous devons nous assurer d'appeler \texttt{fflush} avant chaque utilisation de \texttt{write(2)}. En effet, pour minimiser le nombre d'appels système sur des petites chaînes de caractères, la libc stocke tout dans un tampon interne et ne l'affiche qu'à partir d'un certain seuil. \texttt{fflush} garantit que le contenu du buffer interne est écrit dans le fichier demandé avant notre écriture manuelle.
+
+Cette optimisation permet notamment un gain de temps pour les chaînes de caractères de plusieurs centaines de Mo. Rien que récupérer la taille de la chaîne de caractères peut prendre un certain temps.
+
+De plus, cette fonction essaye d'inclure le caractère de saut de ligne directement dans la chaîne de caractères si cela est possible. Dans l'autre cas, elle l'affiche séparément via un appel à \texttt{fprintf} ; statistiquement cette partie du code ne sera appelée que très rarement. En effet, il faut que la taille de la chaîne de caractères soit exactement égale à sa taille allouée, soit un multiple de 2. Cela crée un effet de bord : il est possible que la chaîne de caractères soit modifiée en sortie de la fonction. Cela ne pose pas de problème dans notre programme, car nous n'affichons qu'une seule fois chaque chaîne.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+void print_string(FILE* out, m_string* s, size_t n) {
+    int fd;
+
+    if ((fd = fileno(out)) == -1)
+        return;
+
+    if (n > s->max_size)
+        n = s->max_size;
+
+    // Il reste de la place pour le '\n'
+    // Le rajouter
+    if (n < s->max_size) {
+        s->ptr[n++] = '\n';
+    }
+
+    // Appel système write(2)
+    // Plus rapide que fwrite qui utilise un buffer interne
+    // Et fprintf qui parse la chaine de caractère pour chercher des %
+    write(fd, s->ptr, n);
+
+    // Si il n'y avait plus de place pour le '\n'
+    if (n >= s->max_size) {
+        fprintf(out, "\n");
+    } // else: on peut retirer le '\n' mais ce n'est pas nécessaire.
+}
+\end{minted}
+
+\subsubsection{Liste chaînée de chaînes de caractères (\texttt{m\_list})}
+\label{m_list}
+
+Nous avons implémenté une liste chaînée contenant nos chaînes de caractères \texttt{m\_string}. Celle-ci est composée d'une structure \texttt{m\_list\_node} représentant un élément de la liste et d'une structure \texttt{m\_list} servant de tête de liste.
+
+Nous ne stockons pas de références (pointeurs) vers une structure de chaîne de caractères, mais directement une copie de la structure \texttt{m\_string} dans chaque nœud de la liste. Cela ne pose aucun problème car la structure \texttt{m\_string} ne contient pas la chaîne de caractères complète, mais l'adresse de début de la chaîne et la taille totale du bloc alloué. Sur un système 64 bits, la structure a une taille d'exactement 16 octets. Cela signifie que chaque élément de la liste (\texttt{sizeof(m\_list\_node)}) ne fait que 24 octets car il rajoute le stockage d'un pointeur vers l'élément suivant de la liste.
+
+De plus, la liste chaînée n'est utilisée que pour le stockage des meilleurs résultats ; cela signifie donc que chaque chaîne de caractères est considérée comme immuable, donc réaliser une copie de la structure ne pose aucun problème de cohérence.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+typedef struct        m_list_node {
+        struct m_list_node* next;
+        m_string             value;
+}                     m_list_node;
+
+typedef struct      m_list {
+        m_list_node* head;
+}                   m_list;
+\end{minted}
+
+Nous avons défini quatre fonctions sur la liste : \texttt{init\_list(m\_list* l)}, \texttt{push\_back(m\_list* l, m\_string value)}, \texttt{clear\_list(m\_list* l)} et \texttt{print\_list(FILE* out, m\_list* l)}.
+
+La fonction \texttt{init\_list} permet d'initialiser une structure existante de liste ; elle ne réalise pas d'allocation mémoire, la responsabilité de l'allocation de la structure \texttt{m\_list} revient à l'appelant.
+
+Afin d'éviter les fuites de mémoire, nous considérons qu'une fois qu'une chaîne de caractères est ajoutée à la fin d'une liste (via \texttt{push\_back}), la désallocation de la chaîne de caractères (le pointeur interne) ne doit plus être gérée par l'appelant, mais devient une responsabilité de la liste. La fonction \texttt{push\_back} utilise \texttt{malloc(3)} pour allouer un nouvel élément de la liste.
+
+Le seul moyen de supprimer un élément de la liste est d'appeler \texttt{clear\_list} ; cette fonction désalloue tous les éléments de la liste et appelle la fonction \texttt{free\_string} sur chaque chaîne de caractères stockée. Nous n'avons pas implémenté de fonction permettant de retirer un élément en particulier de la liste en raison du comportement du programme : nous accumulons tous les éléments étant les "plus grands" (\texttt{--only-longest}). Lorsqu'un nouvel élément encore plus grand est découvert, nous devons supprimer tous les éléments de la liste ; ceux-ci sont devenus invalides car nous avons trouvé mieux.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+void clear_list(m_list* l) {
+    m_list_node* curr;
+    m_list_node* next;
+    
+    curr = l->head;
+
+    while(curr != NULL) {
+        next = curr->next;
+        free_string(&curr->value);
+        free(curr);
+        curr = next;
+    }
+
+    l->head = NULL;
+}
+\end{minted}
+
+\subsection{Gestion de la LED}
+
+\subsubsection{Branchement de la LED}
+
+Contrairement à ce qui est proposé dans l'énoncé du projet, nous avons décidé de brancher la LED sur les pins Pulse Width Modulation (PWM) du Raspberry Pi (voir la table \ref{table:branchement}). En effet, nous voulions initialement utiliser la fonctionnalité PWM du Raspberry Pi pour pouvoir utiliser n'importe quelle couleur RGB sur la LED. Or, le Raspberry Pi ne contient que deux canaux PWM différents, ce qui implique que nous ne pouvions pas correctement gérer la LED de cette façon. Nous avons aussi considéré l'utilisation d'un Software PWM, mais celui-ci requiert l'utilisation d'un thread (de la bibliothèque pthread) par canal de couleur. Au final, nous gérons la LED plus simplement en OUTPUT, c'est-à-dire HIGH ou LOW pour chaque canal de couleur.
+
+\begin{table}[h]
+\centering 
+\begin{tabular}{|c|c|} \hline Rouge & GPIO 12 \\ \hline Vert & GPIO 19 \\  \hline Bleu & GPIO 13 \\ \hline Alimentation & GPIO 18 \\ \hline \end{tabular} \caption{Pins de la LED} \label{table:branchement}
+\end{table}
+
+\subsubsection{Implémentation de la LED}
+
+Nous avons considéré plusieurs options pour la gestion de la LED lors de l'exécution du programme, notamment pour la faire clignoter en deux couleurs. Pour chacune des méthodes, nous avons mesuré la performance du programme afin de déterminer laquelle était la plus adéquate à notre projet (voir section Performance).
+
+De manière générale, nous avons créé une structure \texttt{Led}, nous permettant de sauvegarder dans une variable les pins de la LED ainsi que de savoir si celle-ci a été initialisée correctement.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+typedef struct Led {
+    uint8_t red_pin;
+    uint8_t blue_pin;
+    uint8_t green_pin;
+    uint8_t power_pin;
+} Led;
+\end{minted}
+
+Nous avons aussi créé une autre structure \texttt{Color} pour nous permettre de représenter les couleurs usuelles (celles utilisées dans le programme) par des macros.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+typedef struct Color {
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+    uint8_t alpha;
+} Color;
+\end{minted}
+
+Au début du programme, nous stockons cette structure sur la pile (stack). Nous l'initialisons ensuite avec les bons pins tels que décrits plus haut. Cette fonction modifie le mode des pins en \texttt{OUTPUT} après avoir initialisé la bibliothèque \texttt{WiringPi} que nous utilisons pour ce projet en raison de sa simplicité d'utilisation comparée à la bibliothèque \texttt{libgpiod} qui était proposée dans l'énoncé.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+#define POWER_PIN 18
+#define RED_PIN 12
+#define GREEN_PIN 19
+#define BLUE_PIN 13
+
+int main(int argc, char *argv[]) {
+    Led led;
+    
+    ...
+    
+    if(init_led(&led, RED_PIN, GREEN_PIN, BLUE_PIN, POWER_PIN) != 0) {
+        fprintf(stderr, "Erreur lors de l'initialisation de la LED\n");
+        exit(1);
+    }
+}
+\end{minted}
+
+Nous disposons maintenant de la structure \texttt{Led}, sur laquelle nous pouvons effectuer des opérations telles que changer la couleur et l'éteindre (bien que nous n'utilisions pas cette dernière fonctionnalité).
+
+\subsection{Architecture et fonctionnement du programme}
+
+La logique de notre programme est séparée en plusieurs fichiers situés dans le dossier \texttt{src/} :
+
+\begin{itemize}
+    \item \texttt{main.c} : contient le point d'entrée du programme.
+    \item \texttt{math\_suite.c} : implémente le cœur de l'algorithme de la suite de Conway.
+    \item \texttt{led.c} : implémente l'affichage de la LED.
+    \item \texttt{m\_string.c } : implémente les fonctions relatives aux chaînes de caractères.
+    \item \texttt{m\_list.c} : implémente les fonctions relatives à la liste chaînée.
+\end{itemize}
+
+Chaque fichier, à l'exception de \texttt{main.c}, possède son fichier correspondant ".h" dans le dossier \texttt{include/} déclarant les structures et les signatures des fonctions relatives au fichier ".c".
+
+Faire clignoter la LED pendant l'exécution du programme nécessite une certaine coordination entre la fonction de résolution de la suite de Conway (\texttt{solve}) et la fonction permettant de changer la couleur de la LED. Le fonctionnement de la fonction \texttt{solve} peut être résumé à trois boucles imbriquées ; la solution naïve consiste à faire clignoter la LED après un certain nombre d'itérations. Cependant, cela ne garantit pas que la LED clignotera à intervalles réguliers et cela aura un impact sur les performances du programme. En effet, à chaque itération le programme devra incrémenter le compteur d'itérations, vérifier s'il doit faire clignoter la LED, et si c'est le cas, effectuer quatre appels système pour changer le statut des pins GPIO (un par canal).
+
+Nous avons donc cherché à éviter ce coût au sein de la fonction \texttt{solve}. Pour cela, nous avons envisagé une solution avec deux flux d'exécution (threads) : un permettant de contrôler la LED et un réalisant le calcul de la fonction \texttt{solve}. 
+
+Nous avons également souhaité comparer l'implémentation avec la bibliothèque \texttt{pthread} et l'utilisation de \texttt{fork(2)}. C'est pourquoi notre programme peut être compilé avec plusieurs drapeaux, permettant de changer directement le code qui va être compilé à l'aide de macros. Les modes sont les suivants :
+
+\begin{itemize}
+    \item \texttt{make all} : fait clignoter la LED au sein de la fonction "\texttt{solve}" (implémentation naïve).
+    \item \texttt{make all THREAD=1} : utilise un thread de la bibliothèque \texttt{pthread} pour exécuter la fonction \texttt{solve}, le processus principal contrôle la LED.
+    \item \texttt{make all FORK=1} : utilise \texttt{fork(2)}, le processus parent contrôle la LED tandis que le processus fils exécute la fonction \texttt{solve}.
+\end{itemize}
+
+\subsubsection{Point d'entrée (\texttt{main.c})}
+
+Ce fichier contient le point d'entrée du programme (fonction \texttt{main}). Celle-ci gère les différents paramètres passés en argument au programme, ouvre les descripteurs de fichiers si nécessaire, gère l'initialisation de la LED, exécute la fonction \texttt{solve} permettant de réaliser le calcul de la suite de Conway, gère les erreurs et ferme les descripteurs de fichiers proprement.
+
+En premier lieu, le point d'entrée initialise la LED via la fonction \texttt{init\_led}, configurant les 4 pins GPIO sur lesquels celle-ci est branchée. Les 4 pins sont des paramètres fixés du programme (constantes préprocesseur) ; il n'est donc pas possible de les changer sans recompiler le code.
+
+Ensuite, le programme analyse les paramètres passés en arguments. Afin de pouvoir échouer rapidement si la syntaxe utilisée n'est pas correcte, il stocke dans quatre variables les arguments récupérés avant d'ouvrir les fichiers.
+
+\paragraph*{Analyse des arguments passés au programme}
+
+Nous utilisons une boucle \texttt{for} permettant d'itérer sur tous les arguments passés en paramètres et la fonction \texttt{strcmp(3)} afin de vérifier si le paramètre actuellement traité correspond à une option connue du programme. Si c'est le cas, la valeur de l'argument est validée (ex: vérification qu'un entier suit l'option \texttt{--debug}) et stockée dans une variable locale. Si une option est mal utilisée (argument manquant ou invalide), un message d'erreur est affiché sur la sortie d'erreur standard (\texttt{stderr})\footnote{Il est explicitement demandé dans les consignes du projet de ne pas écrire sur la sortie standard si le paramètre \texttt{--debug} est égal à 0 ou n'est pas communiqué. Cependant, puisque nous sommes au stade de l'analyse des arguments, nous ne connaissons pas encore la valeur de debug. De plus, les messages d'erreur sont écrits sur la sortie d'erreur (\texttt{stderr}) et non la sortie standard, ce qui est la bonne pratique pour signaler un mauvais usage.} et le programme s'arrête avec le code d'erreur 1. Nous utilisons l'instruction \texttt{goto} pour sauter à la section gérant les erreurs au sein de la fonction main.
+
+Une fois les arguments analysés, le programme ouvre les fichiers d'entrée (\texttt{input}) et de sortie (\texttt{output}) s'ils ont été passés en paramètres ; dans le cas contraire, le programme utilise \texttt{stdin} et \texttt{stdout} (entrée et sortie standard) comme descripteurs de fichiers.
+
+Si l'ouverture d'un fichier retourne une erreur (fichier inexistant, permissions insuffisantes, etc.), le programme affiche un message explicatif sur la sortie d'erreur à l'aide de \texttt{perror(3)}. Nous utilisons ensuite l'instruction \texttt{goto} pour sauter à la section de gestion des erreurs.
+
+\paragraph*{Gestion centralisée des ressources (\texttt{goto})}
+
+Nous déclarons deux labels au sein de la fonction \texttt{main} : \texttt{cleanup} et \texttt{fail}.
+
+Le premier (\texttt{cleanup}) contient le code de "nettoyage" de la fonction main ; c'est à cet endroit que nous fermons les descripteurs de fichiers. Cela nous permet de nous assurer que le programme ne contient aucune fuite de mémoire. Il quitte ensuite le programme avec le code d'erreur stocké dans la variable \texttt{ret}. Utiliser une variable pour stocker le code de retour permet de définir celui-ci sur une valeur différente de 0 en cas d'erreur d’exécution, tout en réutilisant la même logique de fermeture des ressources. Il s'agit d'ailleurs de la raison de l'utilisation de labels et de \texttt{goto} : cela permet d'éviter la duplication de code. Bien que \texttt{goto} soit parfois considéré comme une mauvaise pratique, son utilisation pour centraliser le nettoyage des ressources en C est idiomatique (le noyau Linux l'utilise abondamment).
+
+Le second label (\texttt{fail}) contient la gestion des erreurs. Il est situé physiquement en dessous du `return` du bloc \texttt{cleanup}, le code n'est donc jamais exécuté si \texttt{fail} n'est pas explicitement appelé. Le label \texttt{fail} met le code de retour \texttt{ret} à 1 (indiquant une erreur), change la couleur de la LED en rouge, puis réalise un saut (\texttt{goto}) vers le label \texttt{cleanup}. Cela permet de gérer les erreurs depuis n'importe quel endroit de la fonction : si une erreur survient, il suffit de sauter vers \texttt{fail}.
+
+De plus, la fonction \texttt{cleanup} vérifie que les fichiers ont bien été ouverts avant de tenter de les fermer. Par exemple, si le fichier d'entrée est ouvert avec succès mais qu'une erreur survient lors de l'ouverture du fichier de sortie, la fonction sautera vers \texttt{fail} puis \texttt{cleanup}. Ce dernier fermera le fichier d'entrée (car ouvert), mais ignorera le fichier de sortie (car le pointeur est resté nul ou invalide).
+
+\subsubsection{Contrôle de la LED en utilisant \texttt{fork(2)}}
+
+Lorsque le programme est compilé avec l'argument \textbf{FORK=1} (\texttt{make all FORK=1}), \texttt{make(1)} compile en définissant le drapeau \texttt{USE\_FORK} (via \texttt{-DUSE\_FORK}). Le code contient ensuite des directives de préprocesseur (\texttt{\#if USE\_FORK} \ldots) qui permettent de compiler des lignes de code de manière conditionnelle.
+
+Le code permettant de réaliser le fork est le suivant\footnote{La déclaration des variables a parfois été omise afin de simplifier la présentation du code. Le code source complet et fonctionnel se situe en annexe.} :
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+if(sigsetjmp(env, 1) == 0) {
+    signal(SIGCHLD, sig_handler);
+
+    pid = fork();
+
+    if (pid == -1) {
+        fprintf(stderr, "Erreur: impossible de fork()\n");
+        goto fail;
+    }
+
+    // Dans le child
+    if(pid == 0) {
+        if(debug >= 3) printf("Child pid=%d, ppid=%d\n", getpid(), getppid());
+        ret = solve(in, out, only_longest, debug);
+        
+        goto cleanup;
+    } else {
+        if(debug >= 3) printf("Parent pid=%d\n", getpid());
+
+        ts.tv_sec = 0;
+        ts.tv_nsec = 500 * 1000 * 1000; /* 500ms */
+
+        while(1) {
+            set_color(&led, BLUE);
+            nanosleep(&ts, NULL);
+            set_color(&led, WHITE);
+            nanosleep(&ts, NULL);
+        }
+    }
+}
+\end{minted}
+
+Nous stockons d'abord l'environnement d'exécution via la fonction \texttt{sigsetjmp(3)} ; celle-ci permet de réaliser un saut non local (équivalent d'un \texttt{goto} entre fonctions) directement depuis un gestionnaire de signal. En effet, nous devons utiliser \texttt{sigsetjmp(3)} et non \texttt{setjmp(3)} car la fonction \texttt{sig\_handler} doit nécessairement se terminer pour que le masque de signaux soit restauré correctement par le système d'exploitation. Conformément à l'explication donnée dans le syllabus\footnote{\url{https://icysi002.ig.umons.ac.be/Theorie/Fichiers/fichiers-signaux-extended.html}}, nous avons utilisé \texttt{sigsetjmp}.
+
+La fonction \texttt{sig\_handler} réalise le saut vers la fonction \texttt{main}.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+sigjmp_buf env;
+
+void sig_handler() {
+    siglongjmp(env, 1);
+}
+\end{minted}
+
+Lors de l'exécution initiale dans la fonction \texttt{main}, \texttt{sigsetjmp} stocke l'état actuel (registres, pile, masque de signaux) et retourne $0$. Cela signifie que le bloc de la première condition réalisant le fork est alors exécuté. Tout d'abord, nous enregistrons notre gestionnaire de signal \texttt{sig\_handler} à l'aide de \texttt{signal(2)}. Ce dernier écoute les signaux \texttt{SIGCHLD}, indiquant la mort d'un processus fils (créé avec \texttt{fork(2)}).
+
+Ensuite, nous effectuons l'appel à \texttt{fork(2)}. Celui-ci réalise une duplication de processus. Le nouveau processus reprend l'exécution exactement à cet endroit. La valeur retournée (\texttt{pid}) dans le processus ayant initié le fork est l'identifiant de processus (\texttt{pid}) du fils nouvellement créé. Le fils, quant à lui, reçoit une valeur de retour de $0$. Cela nous permet de déterminer qui doit exécuter quoi par la suite. Le fils exécute la fonction \texttt{solve}, avec les paramètres dupliqués du parent, tandis que le parent fait alterner la couleur de la LED entre bleu et blanc toutes les 500 millisecondes.
+
+Lors de la réception du signal par \texttt{sig\_handler}, nous réalisons un \texttt{siglongjmp(3)} ; ce dernier permet de sauter directement là où le \texttt{sigsetjmp} a été appelé. La valeur de retour de la fonction est alors différente de $0$ (ici 1), ce qui rend la condition \texttt{if} fausse. Le programme sort donc du bloc, ce qui interrompt immédiatement la boucle \texttt{while(1)}. De plus, la réception d'un signal interrompt les appels système bloquants tels que \texttt{nanosleep}, assurant une réactivité immédiate.
+
+Lors de la compilation avec le drapeau \texttt{-Wall} de \texttt{gcc}, nous avons obtenu les avertissements suivants :
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+src/main.c:81:14: warning: variable 'in' might be clobbered by 'longjmp' or 'vfork' [-Wclobbered]
+   81 |     FILE* in  = 0;
+src/main.c:96:14: warning: variable 'ret' might be clobbered by 'longjmp' or 'vfork' [-Wclobbered]
+   96 |     int      ret = 0;
+...
+\end{minted}
+
+Ces avertissements "Clobbered" (variable écrasée) sont dus au fait que l'appel à la fonction \texttt{sigsetjmp} sauvegarde les registres CPU. Le compilateur peut décider, pour des raisons d'optimisation, de garder le contenu des variables uniquement dans un registre, sans passer par la mémoire (RAM). Si la variable \textit{in} se trouve dans un registre au moment où l'état est sauvegardé, puis est modifiée par la suite, sa valeur sera restaurée à l'état initial (ancien) lors du \texttt{siglongjmp}, écrasant ainsi la modification. Cela peut poser problème dans certains cas où la persistance de la modification est nécessaire. Cependant, dans notre architecture, nous ne modifions pas ces variables critiques entre le point de sauvegarde et le point de restauration dans le flux du parent.
+
+Afin de supprimer l'avertissement de \texttt{gcc}, nous avons déclaré toutes les variables susceptibles d'être modifiées en mode \texttt{static}. Cela signifie qu'elles ne sont plus stockées dans les registres ou la pile, mais dans le segment de données du programme. Elles ne risquent donc plus d'être écrasées lors de la restauration des registres, car elles ne s'y trouvent plus.
+
+Une fois l'exécution du fils terminée, nous utilisons \texttt{waitpid(2)} dans le parent, permettant de récupérer le code de sortie du fils à l'intérieur de la variable \texttt{status}. Étant donné que le processus fils retourne directement la sortie de la fonction \texttt{solve}, nous pouvons savoir si un problème a eu lieu lors de l'exécution de \texttt{solve}.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+if(waitpid(pid, &status, 0) == -1) {
+    perror("wait(): erreur\n");
+    goto fail;
+} else {
+    if (debug >= 3) printf("child a quitte avec %d\n", status);
+
+    if (status != 0) {
+        goto fail;
+    }
+}
+\end{minted}
+
+\subsubsection{Contrôle de la LED en utilisant \texttt{pthread(3)}}
+
+Lorsque le programme est compilé avec l'argument \textbf{THREAD=1} (\texttt{make all THREAD=1}), et comme expliqué précédemment, \texttt{make(1)} définit le drapeau \textbf{USE\_THREAD} lors de la compilation du programme. Les directives du préprocesseur se chargent ensuite d'inclure les lignes de code relatives à l'utilisation des threads.
+
+L'exécution du thread est réalisée comme suit :
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+if(debug >= 3) printf("Execution du thread\n");
+thread_args.in = in;
+thread_args.out = out;
+thread_args.only_longest = only_longest;
+thread_args.debug = debug;
+running = 1;
+pthread_create(&thread, NULL, thread_solve, (void*)&thread_args);
+
+while(running) {
+    set_color(&led, BLUE);
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_nsec += 500 * 1000 * 1000;
+
+    if (ts.tv_nsec >= 1000000000) {
+        ts.tv_nsec -= 1000000000;
+        ts.tv_sec += 1;
+    }
+
+    pthread_mutex_lock(&running_lock);
+    if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
+        pthread_mutex_unlock(&running_lock);
+        break;
+    }
+
+    set_color(&led, WHITE);
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_nsec += 500 * 1000 * 1000;
+
+    if (ts.tv_nsec >= 1000000000) {
+        ts.tv_nsec -= 1000000000;
+        ts.tv_sec += 1;
+    }
+    
+    if (pthread_cond_timedwait(&running_cond, &running_lock, &ts) != ETIMEDOUT && !running) {
+        pthread_mutex_unlock(&running_lock);
+        break;
+    }
+    pthread_mutex_unlock(&running_lock);
+}
+
+\end{minted}
+
+Nous avons besoin, pour gérer correctement le thread, de plusieurs variables globales supplémentaires. Le \texttt{mutex} (verrou) permet au programme de protéger l'accès concurrent à la variable partagée \texttt{running} et à la variable de condition \texttt{cond}. Ces variables sont définies de manière statique.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+static pthread_mutex_t running_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t running_cond = PTHREAD_COND_INITIALIZER;
+
+volatile int running;
+\end{minted}
+
+La signature standard d'une fonction lancée par \texttt{pthread\_create} n'accepte qu'un seul argument (un pointeur générique \texttt{void*}). Pour pallier cette limitation et transmettre plusieurs paramètres, nous créons une structure \texttt{t\_args} que nous instancions pour regrouper nos arguments, et nous transmettons son adresse au thread.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+  struct t_args {
+    FILE* in;
+    FILE* out;
+    int     only_longest;
+    int     debug;
+};  
+\end{minted}
+
+Ladite fonction récupère les données de cette structure en convertissant le pointeur \texttt{void*} reçu vers le type \texttt{struct t\_args*} pour pouvoir exécuter la fonction \texttt{solve}. Il est à noter que la valeur de retour de \texttt{solve} est sauvegardée et retournée à la fin du thread. Avant de terminer, le thread met à jour la variable \texttt{running} à 0 et signale ce changement via la variable de condition, ce qui permet au processus principal d'arrêter de faire clignoter la LED immédiatement.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+void* thread_solve(void* args_void) {
+    struct t_args* args = (struct t_args*)args_void;
+
+    int ret = solve(args->in, args->out, args->only_longest, args->debug);
+
+    pthread_mutex_lock(&running_lock);
+    running = 0;
+    pthread_cond_signal(&running_cond);
+    pthread_mutex_unlock(&running_lock);
+
+    return (void*) ret; 
+}
+\end{minted}
+
+Après l'arrêt de la boucle de la LED, le programme attend que le thread se termine proprement avec \texttt{pthread\_join} et récupère sa valeur de retour.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+void *thread_ret;
+if (pthread_join(thread, &thread_ret) != 0) {
+    goto fail;
+} else {
+    ret = (int) (long)thread_ret; 
+    if (ret != 0) {
+        goto fail;
+    }
+}
+\end{minted}
+
+Une note importante concerne l'utilisation de la variable de condition dans la boucle gérant la LED. En effet, l'utilisation d'un \texttt{sleep} classique introduirait une latence : si le thread termine son exécution pendant que le processus principal dort, ce dernier ne s'en rendra compte qu'à la fin du délai (jusqu'à 500ms). Nous utilisons donc \texttt{pthread\_cond\_timedwait}, qui permet d'attendre un temps donné, mais qui peut être interrompu prématurément si le thread signale sa terminaison via \texttt{pthread\_cond\_signal}. Cela assure une réactivité immédiate à la fin du calcul.
+
+Cette fonction prend également un temps absolu (horloge système) et non un temps relatif (durée). Nous récupérons donc l'instant actuel avant l'attente et nous lui ajoutons 500ms en veillant à gérer les débordements de nanosecondes car \texttt{tv\_nsec} ne doit pas dépasser $999\,999\,999$.
+
+Finalement, il est important de noter que nous acquérons le mutex (\textit{lock}) avant d'entrer dans l'attente de \texttt{pthread\_cond\_timedwait}. À première vue, cela pourrait sembler problématique : le mutex semblant acquis pour toute la durée de l'attente, le thread secondaire (celui exécutant \texttt{solve}) cherchant à notifier sa fin d'exécution se retrouverait bloqué en tentant d'acquérir ce même mutex, générant une interblocage (\textit{deadlock}) tant que le thread principal ne l'aurait pas libéré.
+
+Cependant, le fonctionnement interne de \texttt{pthread\_cond\_timedwait} résout ce problème : la fonction relâche atomiquement le mutex au moment où elle met le thread en sommeil. Une fois le signal reçu (ou le temps écoulé), la fonction ré-acquiert automatiquement le mutex avant de rendre la main au programme. Ce mécanisme garantit deux choses : premièrement, que le thread secondaire peut acquérir le mutex pour signaler sa fin sans latence pendant que le principal dort ; deuxièmement, que l'accès à la variable partagée \texttt{running} reste parfaitement synchronisé et protégé contre les accès concurrents ("race conditions") au réveil des threads.
+
+\subsubsection{Contrôle de la LED dans la fonction \texttt{solve}}
+
+Sans l'utilisation de \texttt{fork(2)} ou de \texttt{thread}, la mise à jour de la LED se fait directement dans la fonction \texttt{solve}.
+
+Afin de vérifier que la LED doit être gérée dans ladite fonction, le fichier d'en-tête \texttt{math\_suite.h} inclut la directive de préprocesseur \texttt{\#if/\#endif}.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+#if !defined(USE_FORK) && !defined(USE_THREAD) && !defined(NO_LED)
+    #define LED_SOLVE
+#endif
+\end{minted}
+
+Le code ci-dessus définit la macro \texttt{LED\_SOLVE}\footnote{Ce nom venant purement du fait de gérer la LED dans la fonction \texttt{solve}.} lorsqu'aucun des drapeaux évoqués dans les sections précédentes n'est ajouté à la compilation par le \texttt{Makefile}, qui gère ici également le potentiel ajout d'un drapeau \texttt{NO\_LED}.
+
+Ensuite, la fonction \texttt{solve} est définie comme pouvant prendre quatre ou cinq arguments, selon que la définition de \texttt{LED\_SOLVE} a eu lieu ou non, et ce en utilisant la directive de préprocesseur \texttt{\#ifdef/\#endif}.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+int solve(FILE* in, 
+          FILE* out, 
+          int     only_longest, 
+          int     debug
+          #ifdef LED_SOLVE
+          ,Led* led
+          #endif
+         );
+\end{minted}
+
+Le corps de la fonction \texttt{solve} contient enfin également la directive \texttt{\#ifdef/\#endif} afin de n'effectuer des actions sur la LED que lorsque la macro \texttt{LED\_SOLVE} est définie.
+
+À l'appel de la fonction avec le paramètre \texttt{led} présent, une variable \texttt{unsigned long long led\_iter} est définie pour compter chaque itération de la fonction. Après un certain nombre d'itérations, la couleur de la LED est alors mise à jour en alternance.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{c}
+    #ifdef LED_SOLVE
+    led_iter++;
+    if (led_iter % 10000000 == 0) {
+        set_color(led, BLUE);
+    } else if (led_iter % 10000000 == 5000000) {
+        set_color(led, WHITE);
+    }
+    #endif
+\end{minted}
+
+Le nombre choisi de 10 000 000 itérations est arbitraire et basé sur des tests permettant simplement de bien discerner le clignotement de la LED lors de l'exécution du programme.
+
+Contrairement aux méthodes précédentes, celle-ci ne fait pas clignoter la LED toutes les 500ms, ce qui peut mener à des différences de périodes de clignotement en fonction de la charge processeur et de la vitesse de calcul.
+
+\subsubsection{Calcul de la suite de Conway (\texttt{math\_suite.c})}
+
+Le fichier \texttt{math\_suite.c} contient la déclaration de la fonction \texttt{solve(FILE* in, FILE* out, int only\_longest, int debug)}. Celle-ci prend en paramètre le fichier d'entrée "in", le fichier de sortie "out", ainsi que deux paramètres supplémentaires : l'indication de n'afficher que les résultats les plus longs et le niveau de débogage à utiliser.
+
+La fonction réalise l'allocation de deux chaînes de caractères \texttt{m\_string} : \texttt{s} et \texttt{s\_new}. Ces structures sont stockées sur la pile d'exécution, bien que le contenu de chaque chaîne de caractères soit alloué dynamiquement à l'aide de \texttt{calloc(3)}. Nous effectuons ces allocations une seule fois au début du traitement, car nous avons évalué que seules deux chaînes de caractères étaient nécessaires pour la réalisation de l'algorithme : la première contenant l'itéré $i$ et la seconde l'itéré $i+1$ en train d'être généré. Nous ne pouvons malheureusement pas utiliser une seule chaîne de caractères car l'itéré $i+1$ possède généralement une longueur plus grande que l'itéré $i$. Cela signifie que si nous modifions directement la chaîne \texttt{s}, nous écraserions une partie des données contenues dans l'entrée avant même d'avoir pu les traiter.
+
+\paragraph*{Lecture de l'entrée}
+
+Nous avons également implémenté une fonction \texttt{read\_input(FILE* in, m\_string* s, int* iter)} permettant de lire une entrée depuis le flux pointé par "in" et de stocker l'itéré initial dans la chaîne "s" ainsi que le nombre d'itérations à réaliser dans "iter". Cette fonction retourne $0$ si la lecture s'est déroulée sans encombre ou $-1$ si la fin du fichier (EOF) ou une erreur a été rencontrée.
+
+Nous réalisons une lecture caractère par caractère, via \texttt{fgetc(3)}, ce qui permet de détecter les espaces (séparateur entre l'itéré initial et le nombre d'itérations à réaliser) ainsi que le séparateur de ligne \texttt{\\n}, indiquant la fin d'une entrée. Nous copions ensuite, caractère par caractère, l'entrée dans la chaîne "s". Si la taille allouée de la chaîne de caractères n'est pas suffisante, la fonction augmentera automatiquement la capacité de la chaîne via une réallocation. Elle pourra également retourner $-1$ si la réallocation ne s'est pas déroulée correctement (en raison d'un manque de mémoire par exemple).
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{C}
+zero_string(s);
+while(1) {
+    c = fgetc(in);
+    if (c == EOF) return -1;
+    if (c == ' ') break;
+    if(string_check(s, i) == -1) return -1;
+    
+    s->ptr[i++] = c;
+}
+\end{minted}
+
+La fonction \texttt{solve} utilise donc \texttt{read\_input} pour lire l'itéré à traiter. Tant que la fonction fournit un itéré valide, la boucle de résolution continue.
+
+\paragraph*{Algorithme}
+
+Nous nous sommes basés sur le code fourni dans l'exemple Python pour concevoir notre algorithme. Celui-ci fonctionne de manière similaire à la version Python mais utilise un mécanisme différent pour comptabiliser le nombre de chiffres répétés consécutivement.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{C}
+while(read_input(in, &s, &iter) == 0) {
+    for(i = 0; i < iter; i++) {
+        j = 0; end = 0; 
+        while(j < s.max_size && s.ptr[j] != '\0') {
+            start = end;
+            /* Comptage du nombre de chiffres identiques */
+            if(increment(&s_new, start, &end) == -1) {
+                ret = -1; goto clean;
+            }
+            while (++j < s.max_size && s.ptr[j] != '\0' && s.ptr[j-1] == s.ptr[j]) {
+                if(increment(&s_new, start, &end) == -1) {
+                    ret = -1; goto clean;
+                }
+            }
+            /* Réallocation de la chaîne de caractères si espace insuffisant */
+            if (string_check(&s_new, end+1) == -1) {
+                ret = -1; goto clean;
+            }
+            /* Ajout du chiffre compté à la fin */
+            s_new.ptr[++end] = s.ptr[j-1];
+            end++;
+        }
+            
+        swap_string(&s, &s_new);
+        zero_string(&s_new);
+    }
+    
+    fflush(out);
+    print_string(out, &s, end);
+}
+\end{minted}
+
+La version Python utilise un compteur entier "j" et l'ajoute ensuite à la chaîne de caractères via \texttt{+= str(...)}. En C, la conversion d'entier en chaîne de caractères et la concaténation ne sont pas aussi triviales à réaliser qu'en Python, notamment lorsque les chaînes résultantes sont de longueur variable. Il est en effet possible que le nombre de répétitions d'un chiffre soit supérieur ou égal à 10, ce qui nécessite plusieurs caractères pour représenter le compte.
+
+Pour gérer ce cas, nous avons décidé de travailler directement sur les chaînes de caractères en utilisant deux indices : \texttt{start} et \texttt{end}, ainsi qu'une fonction \texttt{increment(m\_string *s, size\_t start, size\_t *end)}. Les indices permettent de délimiter une sous-chaîne de \texttt{s\_new}, qui représente le nombre d’occurrences comptées en représentation ASCII.
+
+Plutôt que de calculer le nombre d'occurrences dans une variable entière \texttt{int} puis de la convertir (via \texttt{sprintf}), nous écrivons la valeur "1" dans la chaîne, et nous appelons \texttt{increment} à chaque fois qu'un caractère identique est rencontré. Cette fonction agit comme une unité arithmétique et logique (ALU) simplifiée travaillant directement sur les codes ASCII :
+
+\begin{itemize} 
+    \item Elle parcourt la sous-chaîne de la droite vers la gauche (de \texttt{end} vers \texttt{start}). 
+    \item Si le caractère est inférieur à '9', elle l'incrémente simplement. 
+    \item Si le caractère est '9', elle gère la retenue en mettant le caractère à '0' et en passant au caractère précédent. 
+    \item Dans le cas critique où une retenue se propage jusqu'au début du nombre (exemple : passage de "9" à "10" ou "99" à "100"), la fonction effectue un décalage mémoire de tout le reste de la chaîne vers la droite pour insérer le nouveau chiffre '1'. 
+\end{itemize}
+
+Cette approche, bien que plus complexe à implémenter qu'un simple compteur, nous affranchit totalement des limites des types entiers du processeur (\texttt{uint64\_t}). Nous pouvons théoriquement compter un nombre d'occurrences ayant des millions de chiffres.
+
+Une fois que l'itéré $i+1$ a été calculé, l'implémentation Python copie le contenu de la nouvelle chaîne de caractères dans la chaîne source, permettant de réaliser de manière itérative le calcul suivant. Au lieu de recopier le contenu entier de chaque chaîne de caractères (ce qui demande une copie caractère par caractère coûteuse), nous réalisons simplement un échange ("swap") des pointeurs de chaque structure \texttt{m\_string}. Cela permet de réaliser une "copie" à coût constant (seules les adresses mémoire et les tailles sont échangées).
+
+Avant d'afficher le résultat via la fonction \texttt{print\_string}, nous devons vider (\texttt{fflush(3)}) le buffer interne de la bibliothèque libc comme expliqué dans la section correspondante (section~\ref{m_string}).
+
+Concernant l'utilisation des instructions de sauts ("goto"), celles-ci permettent de simplifier la sortie de la fonction en s'assurant que les chaînes de caractères allouées à l'aide de \texttt{calloc(3)} sont bien libérées via \texttt{free(3)} avant que la fonction ne retourne. En effet, si nous avions simplement utilisé \texttt{return -1} de manière naïve, les chaînes de caractères allouées dans la fonction n'auraient jamais été libérées, ce qui aurait généré une fuite de mémoire.
+
+Pour cela, nous avons labellisé le bloc de fin de la fonction "\texttt{clean}". Celui-ci réalise la désallocation mémoire des deux chaînes de caractères avant de quitter la fonction, ce qui garantit une gestion correcte des ressources. Si la fonction n'appelle jamais le \texttt{goto}, le code de retour \texttt{ret} est mis à 0 et le code s'exécute de la même manière, traversant le label sans encombre. Cela permet une gestion plus simple et centralisée que la duplication des appels à \texttt{free} à chaque endroit où la fonction est susceptible de retourner une erreur.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{C}
+    ret = 0;
+    clean:
+        free_string(&s);
+        free_string(&s_new);
+
+    return ret;
+\end{minted}
+
+\paragraph*{Affichage des résultats les plus longs uniquement}
+
+Pour l'affichage des résultats les plus longs uniquement, nous avons utilisé la liste chaînée \texttt{m\_list} (section~\ref{m_list}). Nous y stockons les "meilleurs" éléments trouvés jusqu'à présent. Lorsqu'un élément supérieur à ceux stockés est trouvé, nous vidons la liste et ajoutons le nouvel élément. Une fois que toutes les entrées ont été traitées, la liste ne contient plus que les éléments gagnants.
+
+Nous avons mis en place une fonction permettant de comparer deux résultats : \texttt{int compare\_result(compare\_key k1, compare\_key k2)}. Celle-ci vérifie d'abord le nombre de chiffres différents (taille), et ensuite le nombre de caractères différents (taille) pour départager deux résultats. Sa valeur de retour est 0 si \texttt{k1 == k2}, 1 si \texttt{k1 > k2} et -1 si \texttt{k1 < k2}.
+
+Au lieu de comparer directement des chaînes de caractères (ce qui serait coûteux), nous comparons des "clés de comparaison" (\texttt{compare\_key}). Celles-ci contiennent les métadonnées nécessaires à la comparaison : la taille de la chaîne de caractères (\texttt{length}) et le nombre de chiffres différents (\texttt{ndiff}). 
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{C}
+typedef struct compare_key {
+        size_t length;
+        int ndiff;
+}              compare_key;
+\end{minted}
+
+Ces clés de comparaison sont obtenues via la fonction \texttt{get\_compare\_key}.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{C}
+void get_compare_key(compare_key* k, m_string s) {
+    short  n;
+    size_t i;
+    
+    n = 0;
+    for (i = 0; s.ptr[i] != '\0'; i++) {
+        n |= (1 << (s.ptr[i] - '0'));
+    }
+    
+    k->length = i;
+    k->ndiff  = 0;
+
+    for (i = 0; i < 10; i++) {
+        if (((n>>i) & 1) == 1) {
+            k->ndiff++;
+        }
+    }
+}
+\end{minted}
+
+Dans cette fonction, nous utilisons un bitmask \texttt{n} afin de compter le nombre de chiffres différents. Le bit correspondant au chiffre $i$ présent dans la chaîne est mis à 1. Nous utilisons l'expression \texttt{s.ptr[i] - '0'} pour obtenir la valeur entière du chiffre (distance ASCII entre le caractère et '0') et l'utiliser comme indice de décalage binaire. Ensuite, nous comptabilisons le nombre de bits à 1 dans le masque pour déterminer le nombre de chiffres uniques.
+
+Comparer des clés au lieu de chaînes de caractères nous permet de ne stocker que la clé de comparaison "la plus grande" trouvée jusqu'à présent. À chaque fois qu'une nouvelle entrée est calculée, nous comparons son résultat à cette clé de référence. S'il est supérieur, nous vidons la liste, ajoutons le nouvel élément et mettons à jour la clé de référence. S'il est égal, nous l'ajoutons simplement à la liste existante. S'il est inférieur, nous l'ignorons.
+
+Étant donné que la chaîne de caractères actuellement stockée dans la liste ne peut pas être réutilisée pour le calcul suivant (car elle appartient désormais à la liste), nous devons allouer une nouvelle chaîne de travail. Nous évitons les fuites de mémoire en nous assurant que la fonction \texttt{clear\_list} désalloue correctement chaque chaîne contenue dans la liste lors de la suppression.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{C}
+switch (compare(&longest_key, s)) {
+    case 1:
+        clear_list(&longest);
+    case 0:
+        push_back(&longest, s);
+        
+        if(alloc_string(&s) == -1) {
+            ret = -1; goto clean;
+        }
+}
+\end{minted}
+
+\subsection{Compilation}
+
+Nous utilisons \texttt{make(1)} pour compiler l’exécutable final du programme. Celui-ci compile de manière indépendante chaque fichier ".c" situés dans \texttt{src/} en fichier objet ".o" dans \texttt{obj/}. Nous "linkons" ensuite tous les fichiers objets ensemble pour créer un exécutable linux (ELF) à l'emplacement \texttt{bin/math\_suite}. Lors de la compilation, nous utilisons l'option \texttt{-I} de \texttt{gcc(1)} permettant d'indiquer au compilateur que nous avons déclaré des fichiers d'entête supplémentaires dans \texttt{include/}.
+
+\subsubsection{Instructions de compilation}
+
+Pour compiler le programme, il faut tout d'abord s'assurer de posséder les prérequis : 
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+sudo apt update && sudo apt install build-essential
+\end{minted}
+
+Cette commande permet d'installer les différents outils (make, gcc, ...) nécessaires à la compilation du programme.
+
+Ensuite, il faut installer manuellement la librairie \href{https://github.com/WiringPi/WiringPi}{WiringPi} permettant la manipulation des pins GPIO, c'est à dire de la LED.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+wget https://github.com/WiringPi/WiringPi/releases/download/3.16/wiringpi_3.16_arm64.deb
+sudo apt install ./wiringpi_3.16_arm64.deb
+\end{minted}
+
+Pour compiler le programme en utilisant le mode par défaut de contrôle de la LED dans la fonction solve, il faut utiliser la commande:
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+make all
+\end{minted}
+
+L’exécutable \texttt{bin/math\_suite} est alors généré\footnote{Pour exécuter ce programme, il est nécessaire que l'utilisateur soit membre du groupe \textbf{gpio}. Dans le cas contraire, le programme refusera de se lancer, car il n'aura pas accès au contrôle de la LED.}.
+
+Pour compiler avec le mode thread ou fork de gestion de la led:
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+make all THREAD=1
+make all FORK=1
+\end{minted}
+
+Par défaut, le compilateur est configuré pour optimiser le programme au maximum (-O3). Il est possible de compiler avec les symboles de débogages en rajoutant le paramètre \texttt{DEBUG=1} à la fin de la commande make.
+
+La commande \texttt{make clean} permet de supprimer tout ce qui a été généré par la compilation, c'est à dire le dossier \texttt{bin/} et le dossier \texttt{obj/}. Cette commande doit être exécutée avant de compiler à nouveau le programme, pour s'assurer qu'aucun fichier résiduel ne pose problème.
+
+\section{Validation et tests}
+
+Nous avons validé le comportement de notre programme en vérifiant que celui-ci se comportait comme attendu dans plusieurs cas différents.
+
+\subsection{Validation des arguments}
+
+Nous avons testés le programme avec des paramètres valides :
+\begin{itemize}
+    \item Les arguments \texttt{--input} et \texttt{--output} avec des fichiers valides (existant et inexistant pour \texttt{--output})
+    \item L'argument \texttt{--input} seul
+    \item L'argument \texttt{--output} seul avec des fichiers valides (existants et inexistants pour \texttt{--output})
+    \item Pas d'argument pour \texttt{input} pour vérifier la lecture de l'entrée standard
+    \item L'argument \texttt{--debug}
+    \item L'argument \texttt{--only-longest}
+    \item Plusieurs combinaisons de tous les arguments, dans des ordres différents.
+\end{itemize}
+
+Nous avons également testé des paramètres invalides pour valider le comportement du programme:
+
+\begin{itemize}
+    \item Un argument manquant pour \texttt{--input}, \texttt{--output} et \texttt{--debug}
+    \item Des valeurs non-numériques pour \texttt{--debug}
+    \item Un fichier inexistant ou avec de mauvaises permissions pour \texttt{--input} et \texttt{--output}, afin de vérifier l'affichage des erreurs.
+\end{itemize}
+
+Dans tous les cas d'erreur, le programme s'est comporté comme prévu : la LED est devenue rouge et le code d'erreur retourné était 1.
+
+\subsection{Validation des résultats}
+
+Nous avons validé les résultats de notre algorithme en le comparant à l'exemple Python.
+
+Nous avons utilisé plusieurs combinaisons d'entrées différentes et les avons exécutées (avec et sans \texttt{--only-longest}) avec l'implémentation Python et avec notre programme. Afin de ne pas comparer des entrées (potentiellement longues) caractère par caractère, nous avons haché les sorties avec la commande \texttt{sha256sum(1)} et comparé directement les valeurs des hash. Pour deux sorties identiques, les hash sont identiques, cependant si les sorties sont différentes ne seraient-ce que de un caractère, alors les hash seront différents.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+pi@group2:~/projet/projet $ echo "2031 33" > ./bin/math_suite | sha256sum
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  -
+pi@group2:~/projet/projet $ echo "2031 33" > python3 math_suite.py | sha256sum
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  -
+\end{minted}
+
+
+\subsection{Vérification des fuites de mémoires}
+
+Pour s'assurer que le programme ne contenait aucune fuite de mémoire, nous avons utilisé \texttt{valgrind(1)}.
+
+Nous avons lancé valgrind avec plusieurs combinaisons de paramètres différents (dont des paramètres générant explicitement des erreurs) pour nous assurer que le programme ne contenait pas de fuites de mémoires. Nous avons utilisé \texttt{--trace-children} afin de suivre le fork.
+
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+valgrind --trace-children=yes --child-silent-after-fork=no \
+--leak-check=full --show-leak-kinds=all ./bin/math_suite --input input.txt
+\end{minted}
+
+Dans tous les cas testés, valgrind, affiche correctement que tous les blocs de mémoire alloués ont été libérés, ce qui signifie qu'aucune fuite de mémoire n'est présente.
+
+Tous les tests ont ensuite été réitérés pour les 3 modes de compilation du programme : fork, thread et "solve".
+
+
+
+\section{Performance}
+
+Nous avons souhaité mesurer la performance de notre programme, afin de comparer les différentes implémentations de gestion de la LED et le script Python.
+
+\subsection{Méthodologie}
+
+Pour pouvoir mesurer la performance de notre programme, nous devons d'abord établir l’environnement dans lequel les tests seront effectués.
+
+Nous avons réalisé les tests sur un Raspberry Pi 4 modèle B, version 4Go de RAM. Le Raspberry Pi était alimenté par le bloc d'alimentation officiel en USB-C et connecté au réseau local par l'intermédiaire d'un câble RJ45. Les 4 pins définis à la table~\ref{table:branchement} étaient branchés pour relier la LED. Une carte micro-SD de 64Go contenant le système d'exploitation était insérée dans le Raspberry Pi.
+ 
+Avant d'effectuer tout test, nous avons redémarré le Raspberry Pi afin d'éviter d'avoir des services en exécution qui ne seraient pas nécessaires au bon fonctionnement de celui-ci. Afin d'éviter que le système ne soit encore en train de charger des services au démarrage, nous attendons systématiquement 10 minutes avant de commencer les tests.
+
+Nous avons souhaité limiter le nombre de services actifs sur le système. Le seul service additionnel aux services système par défaut de la distribution installée (Debian 6.12.47 bookworm) est \texttt{Tailscale}, que nous utilisons pour pouvoir accéder au Raspberry Pi depuis l'extérieur du réseau local.
+
+Une fois le système démarré et stabilisé (vérifié via l'utilitaire \texttt{htop} en observant l'activité du processeur), nous pouvons démarrer les tests. Ceux-ci sont lancés depuis une session SSH.
+
+Afin d'éviter toute erreur humaine, nous avons créé un script \texttt{bash} automatisant l'exécution des tests. Ce script impose une attente de 10 minutes entre chaque test pour laisser le processeur refroidir (le Raspberry Pi n'étant pas muni d'une solution de refroidissement active, cela évite le \textit{thermal throttling}).
+
+Afin d'éviter toute erreur humaine, nous avons créé un script \texttt{bash} automatisant l'exécution des tests. Ce script impose une attente de 10 minutes entre chaque test pour laisser le processeur refroidir (le Raspberry Pi n'étant pas muni d'une solution de refroidissement active, cela évite le \textit{thermal throttling}).
+
+Pour chaque méthode présentée précédemment, nous recompilons le programme avec le mode adéquat avant d'effectuer les mesures.
+Les tests effectués sont :
+\begin{itemize}
+    \item Exécution normale avec \texttt{input.txt}
+    \item Exécution avec le drapeau \texttt{--only-longest} avec \texttt{input.txt}
+    \item Exécution normale avec \texttt{input\_slow.txt}
+    \item Exécution avec le drapeau \texttt{--only-longest} avec \texttt{input\_slow.txt}
+\end{itemize}
+
+Les fichiers d'entrée sont :
+
+\begin{minted}{bash}
+# fichier input.txt ("normal")
+1 5
+1 10
+25 3
+2195 2
+11113333 1 # chaque 1 et 3 est répété un grand nombre de fois
+1 10
+\end{minted}
+
+\begin{minted}{bash}
+# fichier input_slow.txt ("slow")
+1 66
+\end{minted}
+
+Tous ces tests sont exécutés à l'aide du programme \texttt{perf} de telle sorte:
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+perf stat -r 10 -d ./bin/math_suite --input input.txt > /dev/null
+\end{minted}
+
+Tous ces tests sont exécutés à l'aide de l'outil d'analyse de performance \texttt{perf} de la manière suivante :
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+perf stat -r 10 -d ./bin/math_suite --input input.txt > /dev/null
+\end{minted}
+
+Cette commande exécute le programme 10 fois (\texttt{-r 10}) pour récolter des statistiques moyennées sur un échantillon, minimisant ainsi les risques de données aberrantes.
+Nous redirigeons la sortie standard du programme vers \texttt{/dev/null} pour éviter que l'affichage des chaînes de caractères dans le terminal n'impacte les performances mesurées (I/O bound).
+
+\iffalse
+Voici donc le script effectuant les tests:
+\begin{minted}[linenos, frame=lines, framesep=2mm, fontsize=\footnotesize]{bash}
+# Le script est exécuté directement après le redémarrage.
+
+function tests() {
+    echo "Test $1 input.txt"
+    perf stat -r 10 -d ./bin/math_suite --input input.txt > /dev/null
+    sleep 10m
+
+    echo "Test $1 input.txt only_longest"
+    perf stat -r 10 -d ./bin/math_suite --input input.txt --only-longest > /dev/null
+    sleep 10m
+
+    echo "Test $1 input_slow.txt"
+    perf stat -r 10 -d ./bin/math_suite --input input_slow.txt > /dev/null
+    sleep 10m
+
+    echo "Test $1 input_slow.txt only_longest"
+    perf stat -r 10 -d ./bin/math_suite --input input_slow.txt --only-longest > /dev/null
+    sleep 10m
+}
+
+function test_python() {
+    echo "Test PYTHON input.txt"
+    perf stat -r 10 -d python math_suite.py --input input.txt > /dev/null
+    sleep 10m
+
+    echo "Test PYTHON input.txt only_longest"
+    perf stat -r 10 -d python math_suite.py --input input.txt --only_longest > /dev/null
+    sleep 10m
+
+    echo "Test PYTHON input_slow.txt"
+    perf stat -r 10 -d python math_suite.py --input input_slow.txt > /dev/null
+    sleep 10m
+
+    echo "Test PYTHON input_slow.txt only_longest"
+    perf stat -r 10 -d python math_suite.py --input input_slow.txt --only_longest > /dev/null
+    sleep 10m
+}
+
+sleep 10m
+
+make clean all
+tests "SOLVE" > result_solve.txt 2>&1
+
+make clean all FORK=1
+tests "FORK" > result_fork.txt 2>&1
+
+make clean all THREAD=1
+tests "THREAD" > result_thread.txt 2>&1
+
+test_python > result_python.txt 2>&1
+\end{minted}
+\fi
+
+
+\subsection{Mesure selon l'implémentation}
+
+Nous obtenons, une fois les tests exécutés, une série de résultats avec un grand nombre d'information. Seule une partie de ces informations nous intéressent, le temps total prit par le programme et le nombre total d'instructions exécutées. Ces résultat sont affichées dans la table \ref{table:resultat_implementations} pour chaque implémentation.
+
+\begin{table}[h]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{c|rl|rl|rl|rl|}
+\cline{2-9}
+                             & \multicolumn{2}{c|}{normal}                                                                                                & \multicolumn{2}{c|}{normal only-longest}                                                                                   & \multicolumn{2}{c|}{slow}                                                                                                         & \multicolumn{2}{c|}{slow only-longest}                                                                                            \\ \hline
+\multicolumn{1}{|c|}{fork}   & \begin{tabular}[c]{@{}r@{}}0,0035\\ 651 263\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}0,0045\\ 653 156\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}6,3196\\ 20 804 605 592\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}6,4806\\ 21 846 550 588\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} \\ \hline
+\multicolumn{1}{|c|}{thread} & \begin{tabular}[c]{@{}r@{}}0,0032\\ 869 809\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}0,0033\\ 871 706\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}6,3659\\ 20 804 618 872\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}6,5271\\ 21 846 564 374\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} \\ \hline
+\multicolumn{1}{|c|}{solve}  & \begin{tabular}[c]{@{}r@{}}0,0031\\ 642 130\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}0,0027\\ 644 014\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}6,9309\\ 23 417 048 368\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \begin{tabular}[c]{@{}r@{}}7,0892\\ 24 458 993 250\end{tabular} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} \\ \hline
+\end{tabular}%
+}
+\caption{Résultats des tests pour chaque implémentation}
+\label{table:resultat_implementations}
+\end{table}
+
+L'outil \texttt{perf(1)} nous permet de comparer de manière plus fiable les différents résultats en nous fournissant le nombre d'instructions exécutées par le CPU. En effet, si le temps d'exécution peut dépendre de nombreux facteurs externes (durée d'appel système, latence du stockage, préemption par d'autres processus, \textit{thermal throttling}\ldots), le nombre d'instructions reflète la complexité algorithmique réelle exécutée par le processeur, de manière indépendante du temps horloge. Par exemple, si le processus est mis en suspens par l'ordonnanceur pendant un long moment, ce compteur ne s'incrémente pas, contrairement au temps écoulé.
+
+Nous constatons que, pour une entrée de taille normale, il n'y a pas de différences notables entre les implémentations. L'implémentation "solve" est plus rapide de 0,4 ms et utilise 3 000 instructions CPU de moins que le "fork" pour le même résultat. Cette différence anecdotique de 3 000 instructions s'explique par le coût fixe de la duplication du processus (\texttt{fork}). Nous constatons également que "thread" est similaire à "fork", tout en utilisant 178 000 instructions CPU de plus sur les petits fichiers. Nous attribuons cela au surcoût de la bibliothèque \texttt{pthread} et de la gestion des mutex.
+
+L'impact du paramètre \texttt{--only-longest} est quant à lui très limité sur le nombre d'instructions CPU (+2 000) pour chaque implémentation, ce qui témoigne de l'efficacité de notre implémentation de la liste chaînée. Nous observons toutefois des variations plus importantes sur les temps d'exécution, ce qui est attendu étant donné la faible durée totale du test.
+
+Nous constatons ensuite que, pour l'entrée "slow", l'écart entre l'implémentation "solve" et les deux autres se creuse de manière notable (+600ms, soit 9\%), ce qui confirme bien l'impact négatif de la vérification du compteur d'itérations au sein de la boucle critique de calcul. Le fait de posséder un fil d'exécution dédié (thread ou processus fils) à la mise à jour de la LED permet de supprimer cette vérification dans la boucle de calcul et d'augmenter les performances. Plus le nombre d'itérations demandé sera important, plus l'écart sera visible.
+
+Un écart de 40ms persiste entre les implémentations "thread" et "fork", "fork" étant légèrement plus rapide. A priori, nous pensions que "fork" serait plus lent que "thread" en raison du coût plus conséquent de la duplication de processus. Cependant, l'absence de nécessité de synchronisation continue dans l'implémentation de "fork" (utilisation de signaux et saut non local uniquement à la fin) donne un léger avantage à cette solution sur le long terme par rapport à la gestion des mutex des threads.
+
+Nous en concluons que la meilleure implémentation dépend de l'entrée du programme. Pour une entrée triviale, la solution "solve" est la plus directe. Pour des calculs lourds générant une suite de Conway massive, les solutions "fork" et "thread" sont préférables, avec un léger avantage pour "fork".
+
+\subsection{Comparaison avec l'implémentation Python}
+
+Nous pouvons maintenant comparer nos implémentations avec celle de référence en Python. La table \ref{table:resultat_python} montre les résultats obtenus sur cette implémentation.
+
+\begin{table}[h]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{c|cl|cl|cl|cl|}
+\cline{2-9}
+                             & \multicolumn{2}{c|}{normal}                                                                                                                        & \multicolumn{2}{c|}{normal only-longest}                                                                                                           & \multicolumn{2}{c|}{slow}                                                                                                                              & \multicolumn{2}{c|}{slow only-longest}                                                                                                                 \\ \hline
+\multicolumn{1}{|c|}{python} & \multicolumn{1}{r}{\begin{tabular}[c]{@{}r@{}}0,1116\\ 101 518 075\end{tabular}} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \multicolumn{1}{r}{\begin{tabular}[c]{@{}r@{}}0,1076\\ 101 651 108\end{tabular}} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \multicolumn{1}{r}{\begin{tabular}[c]{@{}r@{}}155,82\\ 576 834 871 545\end{tabular}} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} & \multicolumn{1}{r}{\begin{tabular}[c]{@{}r@{}}151,00\\ 577 204 407 883\end{tabular}} & \begin{tabular}[c]{@{}l@{}}secondes\\ instructions\end{tabular} \\ \hline
+\end{tabular}%
+}
+\caption{Résultats sur l'implémentation \texttt{Python}}
+\label{table:resultat_python}
+\end{table}
+
+Il est évident que notre implémentation C est bien plus performante que l'implémentation naïve en Python. En moyenne, notre implémentation est \textbf{25 fois plus rapide} que Python et utilise environ 27 fois moins d'instructions pour obtenir le même résultat, et ce, même avec la gestion supplémentaire de la LED (absente du script Python fourni).
+
+\section{Conclusion}
+
+A travers les différentes méthodes d'implémentation du calcul de la suite de Conway (méthode directe, méthode fork et méthode thread), ce projet démontre l'efficacité temporelle et spatiale du \texttt{C} par rapport à \texttt{python}.
+
+Nous notons toutefois que le programme C est beaucoup plus complexe que le programme Python (environ 1000 lignes de code contre 60 pour Python). Le C demande au développeur de gérer lui-même la mémoire, optimisations, et fournit une bibliothèque standard très limitée comparée à celle du langage Python. Avoir un langage bas niveau rend la conception du programme plus complexe, mais permet un gain de performance très important.
+@a
+\end{document}
