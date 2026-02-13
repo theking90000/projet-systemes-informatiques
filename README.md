@@ -2,7 +2,7 @@
 ## Le projet
 Ce projet s'inscrit dans le cadre du cours de systèmes informatiques.
 
-Le rapport du projet est disponible en PDF [rapport.pdf](./rapport.pdf). 
+Le rapport du projet est disponible en PDF [Rapport.pdf](./Rapport.pdf). 
 Le code source (LaTeX) du rapport est le fichier [rapport.tex](./rapport.tex)
 
 ## Dépendances du projet
